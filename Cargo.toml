@@ -1,0 +1,10 @@
+[package]
+name = "etternaonline_api"
+version = "0.1.0"
+authors = ["kangalioo <jannik.a.schaper@web.de>"]
+edition = "2018"
+
+[dependencies]
+ureq = { version = "1.3", features = ["json"] }
+serde_json = "1.0"
+thiserror = "1.0"
