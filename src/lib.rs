@@ -41,25 +41,37 @@ pub struct Session {
 	password: String,
 	client_data: String,
 
-	authorization: String,
-	// TODO: Implement arbitrary rate limit
+    // The auth key that we get from the server on login
+    authorization: String,
+    
+    // Rate limiting stuff
+    last_request: std::time::Instant,
+    rate_limit: std::time::Duration,
 }
 
 impl Session {
+    /// Initiate a new session by logging in using the specified credentials and API token.
+    /// 
+    /// Rate-limiting is done by waiting at least `rate_limit` inbetween requests
 	pub fn new_from_login(
 		username: String,
 		password: String,
-		client_data: String,
+        client_data: String,
+        rate_limit: std::time::Duration,
 	) -> Result<Self, Error> {
 		let authorization = "dummy key that will be replaced anyway when I login".into();
 
-		let mut session = Self { username, password, client_data, authorization };
+		let mut session = Self {
+            username, password, client_data, authorization, rate_limit,
+            last_request: std::time::Instant::now(),
+        };
 		session.login()?;
 
 		Ok(session)
 	}
 
-	pub fn login(&mut self) -> Result<(), Error> {
+    // login again to generate a new session token
+	fn login(&mut self) -> Result<(), Error> {
 		let response = ureq::post("https://api.etternaonline.com/v2/login")
 			.send_form(&[
 				("username", &self.username),
@@ -81,9 +93,17 @@ impl Session {
 		}
 	}
 
-	fn get(&mut self,
+	fn request(&mut self,
 		builder: impl Fn() -> ureq::Request
 	) -> Result<(u16, serde_json::Value), Error> {
+
+        // Do tha rate-limiting
+        let time_since_last_request = std::time::Instant::now().duration_since(self.last_request);
+        if time_since_last_request < self.rate_limit {
+            std::thread::sleep(self.rate_limit - time_since_last_request);
+        }
+        self.last_request = std::time::Instant::now();
+
 		let response = builder()
 			.set("Authorization", &self.authorization)
 			.call();
@@ -91,7 +111,7 @@ impl Session {
 		if response.status() == 401 {
 			// Token expired, let's login again and retry
 			self.login()?;
-			self.get(builder)
+			self.request(builder)
 		} else {
             let status = response.status();
             let json = response.into_json()
@@ -100,8 +120,11 @@ impl Session {
 		}
 	}
 
+    /// Retrieves details about the profile of the specified user.
+    /// 
+    /// If there is no user with the specified username, `Err(Error::UserNotFound)` is returned.
 	pub fn user_details(&mut self, username: &str) -> Result<User, Error> {
-		let json = match self.get(|| {
+		let json = match self.request(|| {
 			ureq::get(&format!("https://api.etternaonline.com/v2/user/{}", username))
 		})? {
 			(200, json) => json,
