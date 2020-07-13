@@ -248,47 +248,60 @@ impl Session {
 	}
 
 	// login again to generate a new session token
-	fn login(&mut self) -> Result<(), Error> {
-		let response = ureq::post("https://api.etternaonline.com/v2/login")
-			.send_form(&[
-				("username", &self.username),
-				("password", &self.password),
-				("clientData", &self.client_data)
-			]);
+	// hmmm I wonder if there's a risk that the server won't properly generate a session token,
+	// return Unauthorized, and then my client will try to login to get a fresh token, and the
+	// process repeats indefinitely...? I just hope that the EO server never throws an Unauthorized
+	// on login
+	fn login(&mut self) -> Result<u64, Error> {
+		let form: &[(&str, &str)] = &[
+			// eh fuck it. I dont wanna bother with those lifetime headaches
+			// who needs allocation efficiency anyways
+			("username", &self.username.clone()),
+			("password", &self.password.clone()),
+			("clientData", &self.client_data.clone()),
+		];
 
-		match response.status() {
-			404 => Err(Error::InvalidLogin),
-			200 => {
-				let json = response.into_json()
-					.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
-				let key = json["data"]["attributes"]["accessToken"].as_str()
-					.expect("Received an access token that is not a string");
-				self.authorization = format!("Bearer {}", key);
-				Ok(())
-			}
-			other => panic!("Unexpected response code {}", other),
-		}
+		let json = self.generic_request(
+			"POST",
+			"login",
+			|mut request| request.send_form(form),
+			false,
+			false,
+		)?;
+
+		self.authorization = format!(
+			"Bearer {}",
+			json["attributes"]["accessToken"].as_str().unwrap(),
+		);
+
+		Ok(json["attributes"]["expiresAt"].as_i64().unwrap() as u64)
 	}
 
-	fn request(&mut self,
+	fn generic_request(&mut self,
 		method: &str,
 		path: &str,
-		request_callback: impl Fn(ureq::Request) -> ureq::Response
+		request_callback: impl Fn(ureq::Request) -> ureq::Response,
+		do_authorization: bool,
+		do_rate_limiting: bool,
 	) -> Result<serde_json::Value, Error> {
 
-		// Do tha rate-limiting
-		let time_since_last_request = std::time::Instant::now().duration_since(self.last_request);
-		if time_since_last_request < self.rate_limit {
-			std::thread::sleep(self.rate_limit - time_since_last_request);
+		if do_rate_limiting {
+			let now = std::time::Instant::now();
+			let time_since_last_request = now.duration_since(self.last_request);
+			if time_since_last_request < self.rate_limit {
+				std::thread::sleep(self.rate_limit - time_since_last_request);
+			}
+			self.last_request = now;
 		}
-		self.last_request = std::time::Instant::now();
 
 		let mut request = ureq::request(
 			method,
 			&format!("https://api.etternaonline.com/v2/{}", path)
 		);
 		request.timeout(self.timeout);
-		request.set("Authorization", &self.authorization);
+		if do_authorization {
+			request.set("Authorization", &self.authorization);
+		}
 
 		let response = request_callback(request);
 		
@@ -299,8 +312,19 @@ impl Session {
 		}
 
 		let status = response.status();
-		let mut json = response.into_json()
-			.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
+		let mut json = match response.into_json() {
+			Ok(json) => json,
+			Err(e) => {
+				let error_msg = format!("{}", e);
+				if error_msg.contains("timed out reading response") {
+					// yes, there are two places where timeouts can happen :p
+					// see https://github.com/algesten/ureq/issues/119
+					return Err(Error::Timeout);
+				} else {
+					return Err(Error::InvalidJson(error_msg));
+				}
+			}
+		};
 		
 		// Error handling
 		if status >= 400 {
@@ -334,6 +358,14 @@ impl Session {
 		}
 
 		Ok(json["data"].take())
+	}
+
+	fn request(&mut self,
+		method: &str,
+		path: &str,
+		request_callback: impl Fn(ureq::Request) -> ureq::Response
+	) -> Result<serde_json::Value, Error> {
+		self.generic_request(method, path, request_callback, true, true)
 	}
 
 	fn get(&mut self, path: &str) -> Result<serde_json::Value, Error> {
