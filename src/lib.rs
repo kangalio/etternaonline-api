@@ -11,7 +11,7 @@ For detailed documentation usage, see [`Session`]
 */
 
 // THIS IS MY TODO LIST:
-// - Add timeout option (gotta properly handle it as an Error:: variant!)
+// - Remove thiserror dependency
 
 mod structs;
 pub use structs::*;
@@ -48,6 +48,8 @@ pub enum Error {
 	ServerIsDown,
 	#[error("An unknown EO API error")]
 	UnknownApiError(String),
+	#[error("Server timed out")]
+	Timeout,
 }
 
 fn difficulty_from_eo(string: &str) -> Result<Difficulty, Error> {
@@ -204,6 +206,8 @@ pub struct Session {
 	// Rate limiting stuff
 	last_request: std::time::Instant,
 	rate_limit: std::time::Duration,
+
+	timeout: std::time::Duration,
 }
 
 impl Session {
@@ -230,11 +234,12 @@ impl Session {
 		password: String,
 		client_data: String,
 		rate_limit: std::time::Duration,
+		timeout: std::time::Duration,
 	) -> Result<Self, Error> {
 		let authorization = "dummy key that will be replaced anyway when I login".into();
 
 		let mut session = Self {
-			username, password, client_data, authorization, rate_limit,
+			username, password, client_data, authorization, rate_limit, timeout,
 			last_request: std::time::Instant::now(),
 		};
 		session.login()?;
@@ -255,7 +260,7 @@ impl Session {
 			404 => Err(Error::InvalidLogin),
 			200 => {
 				let json = response.into_json()
-				.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
+					.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
 				let key = json["data"]["attributes"]["accessToken"].as_str()
 					.expect("Received an access token that is not a string");
 				self.authorization = format!("Bearer {}", key);
@@ -282,10 +287,17 @@ impl Session {
 			method,
 			&format!("https://api.etternaonline.com/v2/{}", path)
 		);
+		request.timeout(self.timeout);
 		request.set("Authorization", &self.authorization);
 
 		let response = request_callback(request);
 		
+		if let Some(ureq::Error::Io(io_err)) = response.synthetic_error() {
+			if io_err.kind() == std::io::ErrorKind::TimedOut {
+				return Err(Error::Timeout);
+			}
+		}
+
 		let status = response.status();
 		let mut json = response.into_json()
 			.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
@@ -827,7 +839,7 @@ impl Session {
 
 		// println!("{:#?}", self.user_top_skillset_scores("kangalioo", Skillset7::Technical, 3)?);
 		// println!("{:#?}", self.user_top_10_scores("kangalioo")?);
-		// println!("{:#?}", self.user_details("kangalioo")?);
+		println!("{:#?}", self.user_details("kangalioo")?);
 		// println!("{:#?}", self.user_latest_scores("kangalioo")?);
 		// println!("{:#?}", self.user_ranks_per_skillset("kangalioo")?);
 		// println!("{:#?}", self.user_top_scores_per_skillset("kangalioo")?);
@@ -841,7 +853,7 @@ impl Session {
 		// let goal = &mut self.user_goals("kangalioo")?[0];
 		// goal.wifescore += 0.01;
 		// println!("{:#?}", self.update_user_goal("kangalioo", &goal));
-		// println!("{:#?}", self.user_goals("kangalioo")?);
+		println!("{:#?}", self.user_goals("kangalioo")?);
 
 
 		// check if wifescores are all normalized to a max of 1.0
