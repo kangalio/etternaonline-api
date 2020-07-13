@@ -19,7 +19,20 @@ pub struct Skillsets7 {
 	pub stamina: f64,
 	pub jackspeed: f64,
 	pub chordjack: f64,
-	pub technical: f64
+	pub technical: f64,
+}
+
+impl Skillsets7 {
+	pub fn overall(&self) -> f64 {
+		(self.stream
+			+ self.jumpstream
+			+ self.handstream
+			+ self.stamina
+			+ self.jackspeed
+			+ self.chordjack
+			+ self.technical)
+			/ 7.0
+	}
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -161,11 +174,12 @@ pub struct Judgements {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+// TODO: maybe rename this? it's used in multiple places, not just score data
 pub struct ScoreDataUser {
 	pub username: String,
 	pub avatar: String,
 	pub country_code: String,
-	pub ssr_overall: f64,
+	pub overall_rating: f64,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -213,4 +227,19 @@ pub struct ChartLeaderboardScore {
 	pub has_replay: bool,
 	pub judgements: Judgements,
 	pub user: ScoreDataUser,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LeaderboardEntry {
+	pub user: ScoreDataUser,
+	pub rating: Skillsets7
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScoreGoal {
+	pub chartkey: String,
+	pub rate: f64,
+	pub wifescore: f64,
+	pub time_assigned: String,
+	pub time_achieved: Option<String>,
 }

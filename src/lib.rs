@@ -10,7 +10,12 @@ username and password combination to expose its functions. You will also need an
 For information on usage, see [`Session`]
 
 <!-- EXAMPLE HERE, 30 LOC OR SO -->
+<!-- Oh also, document all the error cases in the API functions -->
 */
+
+// THIS IS MY TODO LIST:
+// - Merge the Skillset(s)[78] variants into single variants, synthetically generate Overall
+// - Add timeout option (gotta properly handle it as an Error:: variant!)
 
 mod structs;
 pub use structs::*;
@@ -41,8 +46,10 @@ pub enum Error {
 	ChartAlreadyAdded,
 	#[error("The uploaded file is not a valid XML file")]
 	InvalidXml,
-	#[error("No users found in this country")]
-	NoUsersInCountry,
+	#[error("No users registered")]
+	NoUsersFound,
+	#[error("Web server is down")]
+	ServerIsDown,
 	#[error("An unknown EO API error")]
 	UnknownApiError(String),
 }
@@ -148,6 +155,24 @@ fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
 	Ok(Some(Replay { notes }))
 }
 
+fn parse_score_data_user_1(json: &serde_json::Value) -> ScoreDataUser {
+	ScoreDataUser {
+		username: json["userName"].as_str().unwrap().to_owned(),
+		avatar: json["avatar"].as_str().unwrap().to_owned(),
+		country_code: json["countryCode"].as_str().unwrap().to_owned(),
+		overall_rating: json["playerRating"].as_f64().unwrap(),
+	}
+}
+
+fn parse_score_data_user_2(json: &serde_json::Value) -> ScoreDataUser {
+	ScoreDataUser {
+		username: json["username"].as_str().unwrap().to_owned(),
+		avatar: json["avatar"].as_str().unwrap().to_owned(),
+		country_code: json["countryCode"].as_str().unwrap().to_owned(),
+		overall_rating: json["Overall"].as_f64().unwrap(),
+	}
+}
+
 /// EtternaOnline API session client, handles all requests to and from EtternaOnline.
 /// 
 /// This wrapper keeps cares of expiring tokens by automatically logging back in when the login
@@ -168,9 +193,9 @@ fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
 /// of 100% corresponds to a value of `1.0` (as opposed to `100.0`).
 /// 
 /// Skillset data comes in two flavors: with overall rating and without overall rating. Depending on
-/// which API function you call, you get one or the either. To avoid ambiguity, there's:
-/// - Without overall: [`Skillsets7`] and [`Skillset7`] 
-/// - With overall: [`Skillsets8`] and [`Skillset8`]
+/// which API function you call, you get one or the other. To avoid ambiguity, this crate provides:
+/// - without overall: [`Skillsets7`] and [`Skillset7`] 
+/// - with overall: [`Skillsets8`] and [`Skillset8`]
 /// 
 /// # Example
 /// ```rust
@@ -207,6 +232,9 @@ impl Session {
 	/// Initiate a new session by logging in using the specified credentials and API token.
 	/// 
 	/// Rate-limiting is done by waiting at least `rate_limit` inbetween requests
+	/// 
+	/// # Errors
+	/// - [`Error::InvalidLogin`] if username or password are wrong
 	/// 
 	/// # Example
 	/// ```rust
@@ -249,7 +277,7 @@ impl Session {
 			404 => Err(Error::InvalidLogin),
 			200 => {
 				let json = response.into_json()
-					.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
+				.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
 				let key = json["data"]["attributes"]["accessToken"].as_str()
 					.expect("Received an access token that is not a string");
 				self.authorization = format!("Bearer {}", key);
@@ -260,7 +288,9 @@ impl Session {
 	}
 
 	fn request(&mut self,
-		builder: impl Fn() -> ureq::Request
+		method: &str,
+		path: &str,
+		request_callback: impl Fn(ureq::Request) -> ureq::Response
 	) -> Result<serde_json::Value, Error> {
 
 		// Do tha rate-limiting
@@ -270,9 +300,13 @@ impl Session {
 		}
 		self.last_request = std::time::Instant::now();
 
-		let response = builder()
-			.set("Authorization", &self.authorization)
-			.call();
+		let mut request = ureq::request(
+			method,
+			&format!("https://api.etternaonline.com/v2/{}", path)
+		);
+		request.set("Authorization", &self.authorization);
+
+		let response = request_callback(request);
 		
 		let status = response.status();
 		let mut json = response.into_json()
@@ -280,11 +314,18 @@ impl Session {
 		
 		// Error handling
 		if status >= 400 {
+			// BAHAHAHAHAHA I just got these three response codes _right in a row_ xDD
+			// > Hit run -> "Unexpected 521" -> Add 521 special case -> hit run -> "Unexpected 503"
+			// > -> Add 503 special case -> hit run -> "Unexpected 525" -> Add 525 special case
+			if status == 521 || status == 503 || status == 525 {
+				return Err(Error::ServerIsDown);
+			}
+
 			return match json["errors"][0]["title"].as_str().unwrap() {
 				"Unauthorized" => {
 					// Token expired, let's login again and retry
 					self.login()?;
-					return self.request(builder);
+					return self.request(method, path, request_callback);
 				},
 				"Score not found" => Err(Error::ScoreNotFound),
 				"Chart not tracked" => Err(Error::ChartNotTracked),
@@ -294,17 +335,25 @@ impl Session {
 				"Goal already exist" => Err(Error::GoalAlreadyExists),
 				"Chart already exists" => Err(Error::ChartAlreadyAdded),
 				"Malformed XML file" => Err(Error::InvalidXml),
-				"No users found" => Err(Error::NoUsersInCountry),
+				"No users found" => Err(Error::NoUsersFound),
 				other => Err(Error::UnknownApiError(other.to_owned())),
 			};
+		} else if status != 200 {
+			// TODO: should we have print calls in a library?
+			println!("Warning: status code {}", status);
 		}
 
 		Ok(json["data"].take())
 	}
 
+	fn get(&mut self, path: &str) -> Result<serde_json::Value, Error> {
+		self.request("GET", path, |mut request| request.call())
+	}
+
 	/// Retrieves details about the profile of the specified user.
 	/// 
-	/// If there is no user with the specified username, `Err(Error::UserNotFound)` is returned.
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
 	/// ```
@@ -312,9 +361,7 @@ impl Session {
 	/// let details = session.user_details("kangalioo")?;
 	/// ```
 	pub fn user_details(&mut self, username: &str) -> Result<UserDetails, Error> {
-		let json = self.request(|| ureq::get(
-			&format!("https://api.etternaonline.com/v2/user/{}", username)
-		))?;
+		let json = self.get(&format!("user/{}", username))?;
 		let json = &json["attributes"];
 
 		Ok(UserDetails {
@@ -331,7 +378,7 @@ impl Session {
 	}
 	
 	fn parse_top_scores(&mut self, url: &str) -> Result<Vec<TopScore>, Error> {
-		let json = self.request(|| ureq::get(url))?;
+		let json = self.get(url)?;
 
 		let mut scores = Vec::new();
 		for score_json in json.as_array().unwrap() {
@@ -356,7 +403,8 @@ impl Session {
 	/// Retrieve the user's top scores by the given skillset. The number of scores returned is equal
 	/// to `limit`
 	/// 
-	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
 	/// ```
@@ -369,14 +417,16 @@ impl Session {
 		limit: u32,
 	) -> Result<Vec<TopScore>, Error> {
 		self.parse_top_scores(&format!(
-			"https://api.etternaonline.com/v2/user/{}/top/{}/{}",
+			"user/{}/top/{}/{}",
 			username, skillset7_to_eo(skillset), limit
 		))
 	}
 
-	/// Retrieve the user's top 10 scores, sorted by the overall SSR.
+	/// Retrieve the user's top 10 scores, sorted by the overall SSR. Due to a bug in the EO v2 API,
+	/// it's unfortunately not possible to control the number of scores returned.
 	/// 
-	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
 	/// ```
@@ -384,12 +434,13 @@ impl Session {
 	/// let scores = session.user_top_10_scores("kangalioo")?;
 	/// ```
 	pub fn user_top_10_scores(&mut self, username: &str) -> Result<Vec<TopScore>, Error> {
-		self.parse_top_scores(&format!("https://api.etternaonline.com/v2/user/{}/top//", username))
+		self.parse_top_scores(&format!("user/{}/top//", username))
 	}
 	
 	/// Retrieve the user's latest 10 scores.
 	/// 
-	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
 	/// ```
@@ -397,9 +448,7 @@ impl Session {
 	/// let scores = session.user_latest_scores("kangalioo")?;
 	/// ```
 	pub fn user_latest_scores(&mut self, username: &str) -> Result<Vec<LatestScore>, Error> {
-		let json = self.request(|| ureq::get(
-			&format!("https://api.etternaonline.com/v2/user/{}/latest", username)
-		))?;
+		let json = self.get(&format!("user/{}/latest", username))?;
 
 		let mut scores = Vec::new();
 		for score_json in json.as_array().unwrap() {
@@ -418,7 +467,8 @@ impl Session {
 
 	/// Retrieve the user's rank for each skillset.
 	/// 
-	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
 	/// ```
@@ -426,9 +476,7 @@ impl Session {
 	/// let scores = session.user_ranks("kangalioo")?;
 	/// ```
 	pub fn user_ranks_per_skillset(&mut self, username: &str) -> Result<UserRanksPerSkillset, Error> {
-		let json = self.request(|| ureq::get(
-			&format!("https://api.etternaonline.com/v2/user/{}/ranks", username)
-		))?;
+		let json = self.get(&format!("user/{}/ranks", username))?;
 		let json = &json["attributes"];
 
 		Ok(UserRanksPerSkillset {
@@ -446,7 +494,8 @@ impl Session {
 	/// Retrieve the user's best scores for each skillset. The number of scores yielded is not
 	/// documented in the EO API, but according to my experiments it's 25.
 	/// 
-	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
 	/// ```rust
@@ -456,9 +505,7 @@ impl Session {
 	pub fn user_top_scores_per_skillset(&mut self,
 		username: &str,
 	) -> Result<UserTopScoresPerSkillset, Error> {
-		let json = self.request(|| ureq::get(
-			&format!("https://api.etternaonline.com/v2/user/{}/all", username)
-		))?;
+		let json = self.get(&format!("user/{}/all", username))?;
 
 		let parse_skillset_top_scores = |array: &serde_json::Value| {
 			let mut scores = Vec::new();
@@ -491,16 +538,15 @@ impl Session {
 
 	/// Retrieves detailed metadata and the replay data about the score with the given scorekey.
 	/// 
-	/// If the scorekey doesn't exist `Error::ScoreNotFound` is returned.
+	/// # Errors
+	/// - [`Error::ScoreNotFound`] if the supplied scorekey was not found
 	/// 
 	/// # Example
 	/// ```
 	/// let score_info = session.score_data("S65565b5bc377c6d78b60c0aecfd9e05955b4cf63")?;
 	/// ```
 	pub fn score_data(&mut self, scorekey: &str) -> Result<ScoreData, Error> {
-		let json = self.request(|| ureq::get(
-			&format!("https://api.etternaonline.com/v2/score/{}", scorekey)
-		))?;
+		let json = self.get(&format!("score/{}", scorekey))?;
 
 		let scorekey = json["id"].as_str().unwrap().to_owned();
 		let json = &json["attributes"];
@@ -518,19 +564,23 @@ impl Session {
 			ssr: skillsets8_from_eo(&json["skillsets"]),
 			judgements: parse_judgements(&json["judgements"]),
 			replay: parse_replay(&json["replay"])?,
-			user: ScoreDataUser {
-				username: json["user"]["username"].as_str().unwrap().to_owned(),
-				avatar: json["user"]["avatar"].as_str().unwrap().to_owned(),
-				country_code: json["user"]["countryCode"].as_str().unwrap().to_owned(),
-				ssr_overall: json["user"]["Overall"].as_f64().unwrap(),
-			},
+			user: parse_score_data_user_2(&json["user"]),
 		})
 	}
 
+	/// Retrieves leaderboard for the specified chart.
+	/// 
+	/// # Errors
+	/// - [`Error::ChartNotTracked`] if the chartkey provided is not tracked by EO
+	/// 
+	/// # Example
+	/// ```rust
+	/// let leaderboard = session.chart_leaderboards("X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
+	/// 
+	/// println!("The best Game Time score is being held by {}", leaderboard[0].user.username);
+	/// ```
 	pub fn chart_leaderboards(&mut self, chartkey: &str) -> Result<Vec<ChartLeaderboardScore>, Error> {
-		let json = self.request(|| ureq::get(
-			&format!("https://api.etternaonline.com/v2/charts/{}/leaderboards", chartkey)
-		))?;
+		let json = self.get(&format!("charts/{}/leaderboards", chartkey))?;
 
 		let mut scores = Vec::new();
 		for json in json.as_array().unwrap() {
@@ -549,20 +599,253 @@ impl Session {
 				ssr: skillsets8_from_eo(&json["skillsets"]),
 				judgements: parse_judgements(&json["judgements"]),
 				has_replay: json["hasReplay"].as_bool().unwrap(), // API docs are wrong again
-				user: ScoreDataUser {
-					username: json["user"]["userName"].as_str().unwrap().to_owned(),
-					avatar: json["user"]["avatar"].as_str().unwrap().to_owned(),
-					country_code: json["user"]["countryCode"].as_str().unwrap().to_owned(),
-					ssr_overall: json["user"]["playerRating"].as_f64().unwrap(),
-				},
+				user: parse_score_data_user_1(&json["user"]),
 			});
 		}
 
 		Ok(scores)
 	}
 
+	/// Retrieves the player leaderboard for the given country.
+	/// 
+	/// # Errors
+	/// - [`Error::NoUsersFound`] if there are no users registered in this country
+	/// 
+	/// # Example
+	/// ```rust
+	/// let leaderboard = session.country_leaderboard("DE")?
+	/// 
+	/// println!(
+	/// 	"The best German Etterna player is {} with a rating of {}",
+	/// 	leaderboard[0].user.username,
+	/// 	leaderboard[0].rating.overall(),
+	/// );
+	/// ```
+	pub fn country_leaderboard(&mut self, country_code: &str) -> Result<Vec<LeaderboardEntry>, Error> {
+		let json = self.get(&format!("leaderboard/{}", country_code))?;
+
+		let mut entries = Vec::new();
+		for json in json.as_array().unwrap() {
+			entries.push(LeaderboardEntry {
+				user: parse_score_data_user_2(&json["attributes"]["user"]),
+				rating: skillsets7_from_eo(&json["attributes"]["skillsets"]),
+			});
+		}
+
+		Ok(entries)
+	}
+
+	/// Retrieves the worldwide leaderboard of players.
+	/// 
+	/// # Example
+	/// ```rust
+	/// let leaderboard = session.world_leaderboard()?;
+	/// 
+	/// println!(
+	/// 	"The world's best Etterna player is {} with a rating of {}",
+	/// 	leaderboard[0].user.username,
+	/// 	leaderboard[0].rating.overall(),
+	/// );
+	/// ```
+	pub fn world_leaderboard(&mut self) -> Result<Vec<LeaderboardEntry>, Error> {
+		self.country_leaderboard("")
+	}
+
+	/// Retrieves the user's favorites. Returns a vector of chartkeys.
+	/// 
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the supplied username was not found
+	/// 
+	/// # Example
+	/// ```rust
+	/// let favorites = session.user_favorites("kangalioo");
+	/// println!("kangalioo has {} favorites", favorites.len());
+	/// ```
+	pub fn user_favorites(&mut self, username: &str) -> Result<Vec<String>, Error> {
+		let json = self.get(&format!("user/{}/favorites", username))?;
+
+		let chartkeys: Vec<String> = json.as_array().unwrap().iter()
+			.map(|obj| obj["attributes"]["chartkey"].as_str().unwrap().to_owned())
+			.collect();
+
+		Ok(chartkeys)
+	}
+
+	/// Add a chart to the user's favorites.
+	/// 
+	/// # Errors
+	/// - [`Error::ChartAlreadyFavorited`] if the chart is already in the user's favorites
+	/// - [`Error::ChartNotTracked`] if the chartkey provided is not tracked by EO
+	/// 
+	/// # Example
+	/// ```rust
+	/// // Favorite Game Time
+	/// session.add_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
+	/// ```
+	pub fn add_user_favorite(&mut self, username: &str, chartkey: &str) -> Result<(), Error> {
+		self.request(
+			"POST",
+			&format!("user/{}/favorites", username),
+			|mut req| req.send_form(&[("chartkey", chartkey)]),
+		)?;
+
+		Ok(())
+	}
+
+	/// Remove a chart from the user's favorites.
+	/// 
+	/// # Example
+	/// ```rust
+	/// // Unfavorite Game Time
+	/// session.remove_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
+	/// ```
+	pub fn remove_user_favorite(&mut self, username: &str, chartkey: &str) -> Result<(), Error> {
+		self.request(
+			"DELETE",
+			&format!("user/{}/favorites/{}", username, chartkey),
+			|mut request| request.call()
+		)?;
+
+		Ok(())
+	}
+
+	/// Retrieves a user's score goals.
+	/// 
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the specified user doesn't exist or if the specified user has no
+	///   goals
+	/// 
+	/// # Example
+	/// ```rust
+	/// let score_goals = session.user_goals("theropfather")?;
+	/// 
+	/// println!("theropfather has {} goals", score_goals.len());
+	/// ```
+	pub fn user_goals(&mut self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
+		let json = self.get(&format!("user/{}/goals", username))?;
+
+		let score_goals: Vec<ScoreGoal> = json.as_array().unwrap().iter()
+			.map(|json| ScoreGoal {
+				chartkey: json["attributes"]["chartkey"].as_str().unwrap().to_owned(),
+				rate: json["attributes"]["rate"].as_f64().unwrap(),
+				wifescore: json["attributes"]["wife"].as_f64().unwrap(),
+				time_assigned: json["attributes"]["timeAssigned"].as_str().unwrap().to_owned(),
+				time_achieved: if json["attributes"]["achieved"].as_i64().unwrap() == 0 {
+					None
+				} else {
+					Some(json["attributes"]["timeAchieved"].as_str().unwrap().to_owned())
+				}
+			})
+			.collect();
+
+		Ok(score_goals)
+	}
+
+	/// Add a new score goal.
+	/// 
+	/// # Errors
+	/// - [`Error::GoalAlreadyExists`] when the goal already exists in the database
+	/// - [`Error::ChartNotTracked`] if the chartkey provided is not tracked by EO
+	/// - [`Error::DatabaseError`] if there was a problem with the database
+	/// 
+	/// # Example
+	/// ```rust
+	/// // Add a Game Time 1.0x AA score goal
+	/// session.add_user_goal(
+	/// 	"kangalioo",
+	/// 	"X4a15f62b66a80b62ec64521704f98c6c03d98e03",
+	/// 	1.0,
+	/// 	0.93,
+	/// 	"2020-07-13 22:48:26",
+	/// )?;
+	/// ```
+	// TODO: somehow enforce that `time_assigned` is valid ISO 8601
+	pub fn add_user_goal(&mut self,
+		username: &str,
+		chartkey: &str,
+		rate: f64,
+		wifescore: f64,
+		time_assigned: &str,
+	) -> Result<(), Error> {
+		self.request(
+			"POST",
+			&format!("user/{}/goals", username),
+			|mut request| request.send_form(&[
+				("chartkey", chartkey),
+				("rate", &format!("{}", rate)),
+				("wife", &format!("{}", wifescore)),
+				("timeAssigned", time_assigned),
+			])
+		)?;
+
+		Ok(())
+	}
+
+	/// Remove the user goal with the specified chartkey, rate and wifescore.
+	/// 
+	/// Note: this API call doesn't seem to do anything
+	/// 
+	/// # Example
+	/// ```rust
+	/// // Let's delete theropfather's first score goal
+	/// 
+	/// let score_goal = session.user_goals("theropfather")?[0];
+	/// 
+	/// session.remove_user_goal(
+	/// 	"theropfather",
+	/// 	score_goal.chartkey,
+	/// 	score_goal.rate,
+	/// 	score_goal.wifescore
+	/// )?;
+	/// ```
+	pub fn remove_user_goal(&mut self,
+		username: &str,
+		chartkey: &str,
+		rate: f64,
+		wifescore: f64,
+	) -> Result<(), Error> {
+		let rate = format!("{}", rate);
+		let wifescore = format!("{}", wifescore);
+		self.request(
+			"DELETE",
+			&format!("user/{}/goals/{}/{}/{}", username, chartkey, wifescore, rate),
+			|mut request| request.call(),
+		)?;
+
+		Ok(())
+	}
+
+	/// Update a score goal by replacing all its attributes with the given ones.
+	/// 
+	/// # Example
+	/// ```rust
+	/// // Let's up kangalioo's first score goal's rate by 0.05
+	/// 
+	/// let score_goal = &mut session.user_goals("kangalioo")?[0];
+	/// 
+	/// score_goal.rate += 0.05;
+	/// 
+	/// session.update_user_goal("kangalioo", score_goal)?;
+	/// ```
+	pub fn update_user_goal(&mut self, username: &str, goal: &ScoreGoal) -> Result<(), Error> {
+		self.request(
+			"POST",
+			&format!("user/{}/goals/update", username),
+			|mut request| request.send_form(&[
+				("chartkey", &goal.chartkey),
+				("timeAssigned", &goal.time_assigned),
+				("achieved", if goal.time_achieved.is_some() { "1" } else { "0" }),
+				("rate", &format!("{}", goal.rate)),
+				("wife", &format!("{}", goal.wifescore)),
+				("timeAchieved", goal.time_achieved.as_deref().unwrap_or("0000-00-00 00:00:00")),
+			]),
+		)?;
+
+		Ok(())
+	}
+
 	pub fn test(&mut self) -> Result<(), Error> {
-		let best_score = &self.user_top_10_scores("kangalioo")?[0];
+		// let best_score = &self.user_top_10_scores("kangalioo")?[0];
 
 		// println!("{:#?}", self.user_top_skillset_scores("kangalioo", Skillset7::Technical, 3)?);
 		// println!("{:#?}", self.user_top_10_scores("kangalioo")?);
@@ -572,6 +855,16 @@ impl Session {
 		// println!("{:#?}", self.user_top_scores_per_skillset("kangalioo")?);
 		// println!("{:#?}", self.score_data(&best_score.scorekey));
 		// println!("{:#?}", self.chart_leaderboards("Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d2"));
+		// println!("{:#?}", self.country_leaderboard("DE"));
+		// println!("{:#?}", self.add_user_favorite("kangalioo", "Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d2"));
+		// println!("{:#?}", self.remove_user_favorite("kangalioo", "Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d2"));
+		// println!("{:#?}", self.add_user_goal("kangalioo", "Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d2", 0.75, 0.8686, "2037-06-04 15:00:00"));
+		// println!("{:#?}", self.remove_user_goal("kangalioo", "Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d2", 0.7, 0.8686));
+		// let goal = &mut self.user_goals("kangalioo")?[0];
+		// goal.wifescore += 0.01;
+		// println!("{:#?}", self.update_user_goal("kangalioo", &goal));
+		// println!("{:#?}", self.user_goals("kangalioo")?);
+
 
 		// check if wifescores are all normalized to a max of 1.0
 		// println!("{} {} {} {} {} {}",
