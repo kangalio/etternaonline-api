@@ -1,3 +1,4 @@
+/// Details about a user. See [`Session::user_details`](crate::Session::user_details)
 #[derive(Debug, PartialEq, Clone)]
 pub struct UserDetails {
 	pub username: String,
@@ -11,6 +12,7 @@ pub struct UserDetails {
 	pub rating: Skillsets,
 }
 
+/// Skillset information. Used for player ratings, score specific ratings or difficulty
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Skillsets {
 	pub stream: f64,
@@ -23,6 +25,7 @@ pub struct Skillsets {
 }
 
 impl Skillsets {
+	/// Return the overall skillset, as derived from the 7 individual skillsets
 	pub fn overall(&self) -> f64 {
 		(self.stream
 			+ self.jumpstream
@@ -35,26 +38,20 @@ impl Skillsets {
 	}
 }
 
+/// Score from a top scores enumeration like [`Session::user_top_10_scores`](crate::Session::user_top_10_scores)
 #[derive(Debug, Clone, PartialEq)]
 pub struct TopScore {
-	/// The scorekey, for example `S65565b5bc377c6d78b60c0aecfd9e05955b4cf63`
 	pub scorekey: String,
-	/// The song name, for example `Game Time`
 	pub song_name: String,
-	/// The overall score-specific-rating
 	pub ssr_overall: f64,
-	/// Wifescore of the score, from 0.0 to 100.0
 	pub wifescore: f64,
-	/// The music rate
 	pub rate: f64,
-	/// The chart difficulty
 	pub difficulty: Difficulty,
-	/// The key of the chart, for example `X6ea10eba800cfcbfe462e902da3d3cdfb8d546d9`
 	pub chartkey: String,
-	/// The MSD of the chart on 1.0x
-	pub ssr: Skillsets,
+	pub base_msd: Skillsets,
 }
 
+/// Score from a latest scores enumeration like [`Session::user_latest_scores`](crate::Session::user_latest_scores)
 #[derive(Debug, Clone, PartialEq)]
 pub struct LatestScore {
 	pub scorekey: String,
@@ -66,6 +63,7 @@ pub struct LatestScore {
 
 }
 
+/// Skillsets enum, excluding overall
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum Skillset7 {
 	Stream,
@@ -77,6 +75,7 @@ pub enum Skillset7 {
 	Technical,
 }
 
+/// Skillsets enum, including overall
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum Skillset8 {
 	Overall,
@@ -89,11 +88,13 @@ pub enum Skillset8 {
 	Technical,
 }
 
+/// Chart difficulty enum
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum Difficulty {
 	Beginner, Easy, Medium, Hard, Challenge, Edit
 }
 
+/// Global ranks in each skillset category. See [`Session::user_ranks_per_skillset`](crate::Session::user_ranks_per_skillset)
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct UserRanksPerSkillset {
 	pub overall: u32,
@@ -106,6 +107,7 @@ pub struct UserRanksPerSkillset {
 	pub technical: u32,
 }
 
+/// Score from a [top scores per skillset enumeration](crate::Session::user_top_scores_per_skillset)
 #[derive(Debug, Clone, PartialEq)]
 pub struct TopScorePerSkillset {
 	pub song_name: String,
@@ -117,6 +119,7 @@ pub struct TopScorePerSkillset {
 	pub ssr: Skillsets,
 }
 
+/// User's best scores in each skillset category. See [`Session::user_top_scores_per_skillset`](crate::Session::user_top_scores_per_skillset)
 #[derive(Debug, Clone, PartialEq)]
 pub struct UserTopScoresPerSkillset {
 	pub overall: Vec<TopScorePerSkillset>,
@@ -129,11 +132,11 @@ pub struct UserTopScoresPerSkillset {
 	pub technical: Vec<TopScorePerSkillset>,
 }
 
+/// Generic information about a score
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoreData {
 	pub scorekey: String,
 	pub ssr: Skillsets,
-	/// 0.0 = 0%, 1.0 = 100%
 	pub wifescore: f64,
 	pub rate: f64,
 	pub max_combo: u32,
@@ -141,12 +144,13 @@ pub struct ScoreData {
 	pub has_chord_cohesion: bool,
 	pub judgements: Judgements,
 	pub replay: Option<Replay>,
-	pub user: ScoreDataUser,
+	pub user: ScoreUser,
 	pub song_name: String,
 	pub artist: String,
 	pub song_id: u32,
 }
 
+/// Number of judgements on a score
 #[derive(Debug, Eq, PartialEq, Clone, Default, Hash)]
 pub struct Judgements {
 	pub marvelouses: u32,
@@ -161,20 +165,22 @@ pub struct Judgements {
 	pub missed_holds: u32,
 }
 
+/// User information contained within a score information struct
 #[derive(Debug, PartialEq, Clone)]
-// TODO: maybe rename this? it's used in multiple places, not just score data
-pub struct ScoreDataUser {
+pub struct ScoreUser {
 	pub username: String,
 	pub avatar: String,
 	pub country_code: String,
 	pub overall_rating: f64,
 }
 
+/// Replay data, contains [`ReplayNote`]
 #[derive(Debug, PartialEq, Clone)]
 pub struct Replay {
 	pub notes: Vec<ReplayNote>,
 }
 
+/// A singular note, used inside [`Replay`]
 #[derive(Debug, PartialEq, Clone)]
 pub struct ReplayNote {
 	/// The position of the note inside the chart, in seconds
@@ -189,18 +195,20 @@ pub struct ReplayNote {
 	pub note_type: NoteType,
 }
 
-#[repr(u8)]
+/// Type of a note
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum NoteType {
-	Tap = 1,
-	HoldHead = 2,
-	HoldTail = 3,
-	Mine = 4,
-	Lift = 5,
-	Keysound = 6,
-	Fake = 7,
+	Tap,
+	HoldHead,
+	HoldTail,
+	Mine,
+	Lift,
+	Keysound,
+	Fake,
 }
 
+
+/// Score information in the context of a [chart leaderboard](crate::Session::chart_leaderboard)
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChartLeaderboardScore {
 	pub scorekey: String,
@@ -214,15 +222,17 @@ pub struct ChartLeaderboardScore {
 	pub modifiers: String,
 	pub has_replay: bool,
 	pub judgements: Judgements,
-	pub user: ScoreDataUser,
+	pub user: ScoreUser,
 }
 
+/// Entry in a score leaderboard
 #[derive(Debug, Clone, PartialEq)]
 pub struct LeaderboardEntry {
-	pub user: ScoreDataUser,
+	pub user: ScoreUser,
 	pub rating: Skillsets,
 }
 
+/// Score goal
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoreGoal {
 	pub chartkey: String,

@@ -3,6 +3,12 @@ name = "etternaonline_api"
 version = "0.1.0"
 authors = ["kangalioo <jannik.a.schaper@web.de>"]
 edition = "2018"
+license = "MIT"
+description = "A Rust wrapper for the v2 API of https://etternaonline.com"
+repository = "https://github.com/kangalioo/etternaonline-api"
+readme = "README.md"
+categories = ["api-bindings", "web-programming"]
+keywords = ["etterna", "http", "bindings"]
 
 [dependencies]
 ureq = { version = "1.3", features = ["json"] }

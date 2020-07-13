@@ -2,7 +2,7 @@
 
 /*!
 This crate provides an ergonomic wrapper around the v2 API of
-[EtternaOnline](https://etternaonline.com) (commonly abbreviated "EO"). The EO API requires a valid
+[EtternaOnline](https://etternaonline.com), commonly abbreviated "EO". The EO API requires a valid
 username and password combination to expose its functions. You will also need an API token called
 "client data".
 
@@ -140,8 +140,8 @@ fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
 	Ok(Some(Replay { notes }))
 }
 
-fn parse_score_data_user_1(json: &serde_json::Value) -> ScoreDataUser {
-	ScoreDataUser {
+fn parse_score_data_user_1(json: &serde_json::Value) -> ScoreUser {
+	ScoreUser {
 		username: json["userName"].as_str().unwrap().to_owned(),
 		avatar: json["avatar"].as_str().unwrap().to_owned(),
 		country_code: json["countryCode"].as_str().unwrap().to_owned(),
@@ -149,8 +149,8 @@ fn parse_score_data_user_1(json: &serde_json::Value) -> ScoreDataUser {
 	}
 }
 
-fn parse_score_data_user_2(json: &serde_json::Value) -> ScoreDataUser {
-	ScoreDataUser {
+fn parse_score_data_user_2(json: &serde_json::Value) -> ScoreUser {
+	ScoreUser {
 		username: json["username"].as_str().unwrap().to_owned(),
 		avatar: json["avatar"].as_str().unwrap().to_owned(),
 		country_code: json["countryCode"].as_str().unwrap().to_owned(),
@@ -418,7 +418,7 @@ impl Session {
 				rate: score_json["attributes"]["rate"].as_f64().unwrap(),
 				difficulty,
 				chartkey: score_json["attributes"]["chartKey"].as_str().unwrap().to_owned(),
-				ssr: skillsets_from_eo(&score_json["attributes"]["skillsets"]),
+				base_msd: skillsets_from_eo(&score_json["attributes"]["skillsets"]),
 			});
 		}
 
@@ -593,18 +593,19 @@ impl Session {
 		})
 	}
 
-	/// Retrieves leaderboard for the specified chart.
+	/// Retrieves the leaderboard for the specified chart. The return type is a vector of
+	/// leaderboard entries.
 	/// 
 	/// # Errors
 	/// - [`Error::ChartNotTracked`] if the chartkey provided is not tracked by EO
 	/// 
 	/// # Example
 	/// ```rust
-	/// let leaderboard = session.chart_leaderboards("X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
+	/// let leaderboard = session.chart_leaderboard("X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
 	/// 
 	/// println!("The best Game Time score is being held by {}", leaderboard[0].user.username);
 	/// ```
-	pub fn chart_leaderboards(&mut self, chartkey: &str) -> Result<Vec<ChartLeaderboardScore>, Error> {
+	pub fn chart_leaderboard(&mut self, chartkey: &str) -> Result<Vec<ChartLeaderboardScore>, Error> {
 		let json = self.get(&format!("charts/{}/leaderboards", chartkey))?;
 
 		let mut scores = Vec::new();
