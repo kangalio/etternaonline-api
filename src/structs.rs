@@ -8,11 +8,11 @@ pub struct UserDetails {
 	pub country_code: String,
 	pub player_rating: f64,
 	pub default_modifiers: String,
-	pub rating: Skillsets7,
+	pub rating: Skillsets,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Skillsets7 {
+pub struct Skillsets {
 	pub stream: f64,
 	pub jumpstream: f64,
 	pub handstream: f64,
@@ -22,7 +22,7 @@ pub struct Skillsets7 {
 	pub technical: f64,
 }
 
-impl Skillsets7 {
+impl Skillsets {
 	pub fn overall(&self) -> f64 {
 		(self.stream
 			+ self.jumpstream
@@ -33,18 +33,6 @@ impl Skillsets7 {
 			+ self.technical)
 			/ 7.0
 	}
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct Skillsets8 {
-	pub overall: f64,
-	pub stream: f64,
-	pub jumpstream: f64,
-	pub handstream: f64,
-	pub stamina: f64,
-	pub jackspeed: f64,
-	pub chordjack: f64,
-	pub technical: f64
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -64,7 +52,7 @@ pub struct TopScore {
 	/// The key of the chart, for example `X6ea10eba800cfcbfe462e902da3d3cdfb8d546d9`
 	pub chartkey: String,
 	/// The MSD of the chart on 1.0x
-	pub ssr: Skillsets7,
+	pub ssr: Skillsets,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -126,7 +114,7 @@ pub struct TopScorePerSkillset {
 	pub chartkey: String,
 	pub scorekey: String,
 	pub difficulty: Difficulty,
-	pub ssr: Skillsets8,
+	pub ssr: Skillsets,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -144,7 +132,7 @@ pub struct UserTopScoresPerSkillset {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoreData {
 	pub scorekey: String,
-	pub ssr: Skillsets8,
+	pub ssr: Skillsets,
 	/// 0.0 = 0%, 1.0 = 100%
 	pub wifescore: f64,
 	pub rate: f64,
@@ -216,7 +204,7 @@ pub enum NoteType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChartLeaderboardScore {
 	pub scorekey: String,
-	pub ssr: Skillsets8,
+	pub ssr: Skillsets,
 	pub wifescore: f64,
 	pub rate: f64,
 	pub max_combo: u32,
@@ -232,7 +220,7 @@ pub struct ChartLeaderboardScore {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LeaderboardEntry {
 	pub user: ScoreDataUser,
-	pub rating: Skillsets7
+	pub rating: Skillsets,
 }
 
 #[derive(Debug, Clone, PartialEq)]

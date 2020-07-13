@@ -7,14 +7,10 @@ username and password combination to expose its functions. You will also need an
 "client data".
 
 # Usage
-For information on usage, see [`Session`]
-
-<!-- EXAMPLE HERE, 30 LOC OR SO -->
-<!-- Oh also, document all the error cases in the API functions -->
+For detailed documentation usage, see [`Session`]
 */
 
 // THIS IS MY TODO LIST:
-// - Merge the Skillset(s)[78] variants into single variants, synthetically generate Overall
 // - Add timeout option (gotta properly handle it as an Error:: variant!)
 
 mod structs;
@@ -78,21 +74,8 @@ fn skillset7_to_eo(skillset: Skillset7) -> &'static str {
 	}
 }
 
-fn skillsets7_from_eo(json: &serde_json::Value) -> Skillsets7 {
-	Skillsets7 {
-		stream: json["Stream"].as_f64().unwrap(),
-		jumpstream: json["Jumpstream"].as_f64().unwrap(),
-		handstream: json["Handstream"].as_f64().unwrap(),
-		stamina: json["Stamina"].as_f64().unwrap(),
-		jackspeed: json["JackSpeed"].as_f64().unwrap(),
-		chordjack: json["Chordjack"].as_f64().unwrap(),
-		technical: json["Technical"].as_f64().unwrap(),
-	}
-}
-
-fn skillsets8_from_eo(json: &serde_json::Value) -> Skillsets8 {
-	Skillsets8 {
-		overall: json["Overall"].as_f64().unwrap(),
+fn skillsets_from_eo(json: &serde_json::Value) -> Skillsets {
+	Skillsets {
 		stream: json["Stream"].as_f64().unwrap(),
 		jumpstream: json["Jumpstream"].as_f64().unwrap(),
 		handstream: json["Handstream"].as_f64().unwrap(),
@@ -183,7 +166,7 @@ fn parse_score_data_user_2(json: &serde_json::Value) -> ScoreDataUser {
 /// 
 /// Initialize a session using [`Session::new_from_login`]
 /// 
-/// # Conventions
+/// # Notes
 /// Etterna terminology:
 /// - The calculated difficulty for a chart is called MSD: Mina standardized difficulty.
 /// - The score rating - which is variable depending on your wifescore - is called SSR:
@@ -191,11 +174,6 @@ fn parse_score_data_user_2(json: &serde_json::Value) -> ScoreDataUser {
 /// 
 /// The wifescores in this library are scaled to a maximum of `1.0`. This is means that a wifescore
 /// of 100% corresponds to a value of `1.0` (as opposed to `100.0`).
-/// 
-/// Skillset data comes in two flavors: with overall rating and without overall rating. Depending on
-/// which API function you call, you get one or the other. To avoid ambiguity, this crate provides:
-/// - without overall: [`Skillsets7`] and [`Skillset7`] 
-/// - with overall: [`Skillsets8`] and [`Skillset8`]
 /// 
 /// # Example
 /// ```rust
@@ -373,7 +351,7 @@ impl Session {
 			country_code: json["countryCode"].as_str().unwrap().to_owned(),
 			player_rating: json["playerRating"].as_f64().unwrap(),
 			default_modifiers: json["defaultModifiers"].as_str().unwrap().to_owned(),
-			rating: skillsets7_from_eo(&json["skillsets"]),
+			rating: skillsets_from_eo(&json["skillsets"]),
 		})
 	}
 	
@@ -393,7 +371,7 @@ impl Session {
 				rate: score_json["attributes"]["rate"].as_f64().unwrap(),
 				difficulty,
 				chartkey: score_json["attributes"]["chartKey"].as_str().unwrap().to_owned(),
-				ssr: skillsets7_from_eo(&score_json["attributes"]["skillsets"]),
+				ssr: skillsets_from_eo(&score_json["attributes"]["skillsets"]),
 			});
 		}
 
@@ -517,7 +495,7 @@ impl Session {
 					chartkey: score_json["chartkey"].as_str().unwrap().to_owned(),
 					scorekey: score_json["scorekey"].as_str().unwrap().to_owned(),
 					difficulty: difficulty_from_eo(score_json["difficulty"].as_str().unwrap())?,
-					ssr: skillsets8_from_eo(&score_json),
+					ssr: skillsets_from_eo(&score_json),
 				})
 			}
 
@@ -561,7 +539,7 @@ impl Session {
 			song_name: json["song"]["songName"].as_str().unwrap().to_owned(),
 			artist: json["song"]["artist"].as_str().unwrap().to_owned(),
 			song_id: json["song"]["id"].as_i64().unwrap() as u32,
-			ssr: skillsets8_from_eo(&json["skillsets"]),
+			ssr: skillsets_from_eo(&json["skillsets"]),
 			judgements: parse_judgements(&json["judgements"]),
 			replay: parse_replay(&json["replay"])?,
 			user: parse_score_data_user_2(&json["user"]),
@@ -596,7 +574,7 @@ impl Session {
 				has_chord_cohesion: !json["noCC"].as_bool().unwrap(),
 				rate: json["rate"].as_f64().unwrap(),
 				datetime: json["datetime"].as_str().unwrap().to_owned(),
-				ssr: skillsets8_from_eo(&json["skillsets"]),
+				ssr: skillsets_from_eo(&json["skillsets"]),
 				judgements: parse_judgements(&json["judgements"]),
 				has_replay: json["hasReplay"].as_bool().unwrap(), // API docs are wrong again
 				user: parse_score_data_user_1(&json["user"]),
@@ -628,7 +606,7 @@ impl Session {
 		for json in json.as_array().unwrap() {
 			entries.push(LeaderboardEntry {
 				user: parse_score_data_user_2(&json["attributes"]["user"]),
-				rating: skillsets7_from_eo(&json["attributes"]["skillsets"]),
+				rating: skillsets_from_eo(&json["attributes"]["skillsets"]),
 			});
 		}
 
