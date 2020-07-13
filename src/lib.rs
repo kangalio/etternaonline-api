@@ -207,7 +207,7 @@ pub struct Session {
 	last_request: std::time::Instant,
 	rate_limit: std::time::Duration,
 
-	timeout: std::time::Duration,
+	timeout: Option<std::time::Duration>,
 }
 
 impl Session {
@@ -224,7 +224,8 @@ impl Session {
 	/// 	"kangalioo",
 	/// 	"<PASSWORD>",
 	/// 	"<CLIENT_DATA>",
-	/// 	std::time::Duration::from_millis(2000), // Wait 2s inbetween requests
+	/// 	std::time::Duration::from_millis(2000), // wait 2s inbetween requests
+	/// 	None, // no timeout
 	/// );
 	/// 
 	/// println!("Details about kangalioo: {:?}", session.user_details("kangalioo"));
@@ -234,7 +235,7 @@ impl Session {
 		password: String,
 		client_data: String,
 		rate_limit: std::time::Duration,
-		timeout: std::time::Duration,
+		timeout: Option<std::time::Duration>,
 	) -> Result<Self, Error> {
 		let authorization = "dummy key that will be replaced anyway when I login".into();
 
@@ -298,7 +299,9 @@ impl Session {
 			method,
 			&format!("https://api.etternaonline.com/v2/{}", path)
 		);
-		request.timeout(self.timeout);
+		if let Some(timeout) = self.timeout {
+			request.timeout(timeout);
+		}
 		if do_authorization {
 			request.set("Authorization", &self.authorization);
 		}
@@ -866,12 +869,12 @@ impl Session {
 		Ok(())
 	}
 
-	pub fn test(&mut self) -> Result<(), Error> {
+	// pub fn test(&mut self) -> Result<(), Error> {
 		// let best_score = &self.user_top_10_scores("kangalioo")?[0];
 
 		// println!("{:#?}", self.user_top_skillset_scores("kangalioo", Skillset7::Technical, 3)?);
 		// println!("{:#?}", self.user_top_10_scores("kangalioo")?);
-		println!("{:#?}", self.user_details("kangalioo")?);
+		// println!("{:#?}", self.user_details("kangalioo")?);
 		// println!("{:#?}", self.user_latest_scores("kangalioo")?);
 		// println!("{:#?}", self.user_ranks_per_skillset("kangalioo")?);
 		// println!("{:#?}", self.user_top_scores_per_skillset("kangalioo")?);
@@ -885,7 +888,7 @@ impl Session {
 		// let goal = &mut self.user_goals("kangalioo")?[0];
 		// goal.wifescore += 0.01;
 		// println!("{:#?}", self.update_user_goal("kangalioo", &goal));
-		println!("{:#?}", self.user_goals("kangalioo")?);
+		// println!("{:#?}", self.user_goals("kangalioo")?);
 
 
 		// check if wifescores are all normalized to a max of 1.0
@@ -898,6 +901,6 @@ impl Session {
 		// 	self.chart_leaderboards("Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d2")?[0].wifescore,
 		// );
 		
-		Ok(())
-	}
+		// Ok(())
+	// }
 }
