@@ -22,12 +22,24 @@ pub enum Error {
 	UnexpectedResponse(String),
 	#[error("Error while parsing the json sent by the server")]
 	InvalidJson(String),
-}
-
-impl Error {
-	fn unexpected_response_code(code: u16) -> Self {
-		Self::UnexpectedResponse(format!("Unexpected response code {}", code))
-	}
+	#[error("Score not found")]
+	ScoreNotFound,
+	#[error("Chart not tracked")]
+	ChartNotTracked,
+	#[error("Favorite already exists")]
+	ChartAlreadyFavorited,
+	#[error("Database error")]
+	DatabaseError,
+	#[error("Goal already exists")]
+	GoalAlreadyExists,
+	#[error("Chart already exists")]
+	ChartAlreadyAdded,
+	#[error("The uploaded file is not a valid XML file")]
+	InvalidXml,
+	#[error("No users found in this country")]
+	NoUsersInCountry,
+	#[error("An unknown EO API error")]
+	UnknownApiError(String),
 }
 
 fn difficulty_from_eo(string: &str) -> Result<Difficulty, Error> {
@@ -54,11 +66,35 @@ fn skillset7_to_eo(skillset: Skillset7) -> &'static str {
 	}
 }
 
+fn skillsets7_from_eo(json: &serde_json::Value) -> Skillsets7 {
+	Skillsets7 {
+		stream: json["Stream"].as_f64().unwrap(),
+		jumpstream: json["Jumpstream"].as_f64().unwrap(),
+		handstream: json["Handstream"].as_f64().unwrap(),
+		stamina: json["Stamina"].as_f64().unwrap(),
+		jackspeed: json["JackSpeed"].as_f64().unwrap(),
+		chordjack: json["Chordjack"].as_f64().unwrap(),
+		technical: json["Technical"].as_f64().unwrap(),
+	}
+}
+
+fn skillsets8_from_eo(json: &serde_json::Value) -> Skillsets8 {
+	Skillsets8 {
+		overall: json["Overall"].as_f64().unwrap(),
+		stream: json["Stream"].as_f64().unwrap(),
+		jumpstream: json["Jumpstream"].as_f64().unwrap(),
+		handstream: json["Handstream"].as_f64().unwrap(),
+		stamina: json["Stamina"].as_f64().unwrap(),
+		jackspeed: json["JackSpeed"].as_f64().unwrap(),
+		chordjack: json["Chordjack"].as_f64().unwrap(),
+		technical: json["Technical"].as_f64().unwrap(),
+	}
+}
+
 /// This is an EtternaOnline API session. It automatically keeps cares of expiring tokens by
 /// automatically logging back in when the login token expires.
 /// 
-/// This session has rate-limiting built-in. _Please_ pass a sensible value in the realm of around a
-/// section and don't circumvent this by passing an empty duration - the EO server is brittle and
+/// This session has rate-limiting built-in. Please do make use of it - the EO server is brittle and
 /// funded entirely by donations.
 /// 
 /// Initialize a session using [`Session::new_from_login`]
@@ -146,7 +182,7 @@ impl Session {
 
 	fn request(&mut self,
 		builder: impl Fn() -> ureq::Request
-	) -> Result<(u16, serde_json::Value), Error> {
+	) -> Result<serde_json::Value, Error> {
 
 		// Do tha rate-limiting
 		let time_since_last_request = std::time::Instant::now().duration_since(self.last_request);
@@ -159,16 +195,32 @@ impl Session {
 			.set("Authorization", &self.authorization)
 			.call();
 		
-		if response.status() == 401 {
-			// Token expired, let's login again and retry
-			self.login()?;
-			self.request(builder)
-		} else {
-			let status = response.status();
-			let json = response.into_json()
-				.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
-			Ok((status, json))
+		let status = response.status();
+		let mut json = response.into_json()
+			.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
+		
+		// Error handling
+		if status >= 400 {
+			return match json["errors"][0]["title"].as_str().unwrap() {
+				"Unauthorized" => {
+					// Token expired, let's login again and retry
+					self.login()?;
+					return self.request(builder);
+				},
+				"Score not found" => Err(Error::ScoreNotFound),
+				"Chart not tracked" => Err(Error::ChartNotTracked),
+				"User not found" => Err(Error::UserNotFound),
+				"Favorite already exists" => Err(Error::ChartAlreadyFavorited),
+				"Database error" => Err(Error::DatabaseError),
+				"Goal already exist" => Err(Error::GoalAlreadyExists),
+				"Chart already exists" => Err(Error::ChartAlreadyAdded),
+				"Malformed XML file" => Err(Error::InvalidXml),
+				"No users found" => Err(Error::NoUsersInCountry),
+				other => Err(Error::UnknownApiError(other.to_owned())),
+			};
 		}
+
+		Ok(json["data"].take())
 	}
 
 	/// Retrieves details about the profile of the specified user.
@@ -181,15 +233,10 @@ impl Session {
 	/// let details = session.user_details("kangalioo")?;
 	/// ```
 	pub fn user_details(&mut self, username: &str) -> Result<UserDetails, Error> {
-		let json = match self.request(|| ureq::get(
+		let json = self.request(|| ureq::get(
 			&format!("https://api.etternaonline.com/v2/user/{}", username)
-		))? {
-			(200, json) => json,
-			(404, _) => return Err(Error::UserNotFound),
-			(code, _) => return Err(Error::unexpected_response_code(code)),
-		};
-
-		let json = &json["data"]["attributes"];
+		))?;
+		let json = &json["attributes"];
 
 		Ok(UserDetails {
 			username: json["userName"].as_str().unwrap().to_owned(),
@@ -200,63 +247,16 @@ impl Session {
 			country_code: json["countryCode"].as_str().unwrap().to_owned(),
 			player_rating: json["playerRating"].as_f64().unwrap(),
 			default_modifiers: json["defaultModifiers"].as_str().unwrap().to_owned(),
-			skillsets: Skillsets8 {
-				overall: json["skillsets"]["Overall"].as_f64().unwrap(),
-				stream: json["skillsets"]["Stream"].as_f64().unwrap(),
-				jumpstream: json["skillsets"]["Jumpstream"].as_f64().unwrap(),
-				handstream: json["skillsets"]["Handstream"].as_f64().unwrap(),
-				stamina: json["skillsets"]["Stamina"].as_f64().unwrap(),
-				jackspeed: json["skillsets"]["JackSpeed"].as_f64().unwrap(),
-				chordjack: json["skillsets"]["Chordjack"].as_f64().unwrap(),
-				technical: json["skillsets"]["Technical"].as_f64().unwrap(),
-			}
+			skillsets: skillsets7_from_eo(&json["skillsets"]),
 		})
 	}
 	
-	/// Retrieve the user's top scores by the given skillset. The number of scores returned is equal
-	/// to `limit`
-	/// 
-	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
-	/// 
-	/// # Example
-	/// ```
-	/// // Retrieve the top 10 chordjack scores of user "kangalioo"
-	/// let scores = session.user_top_scores("kangalioo", Skillset7::Chordjack, 10)?;
-	/// ```
-	pub fn user_top_scores(&mut self,
-		username: &str,
-		// skillset: impl Into<Option<Skillset7>>, // TODO: add this back in when the EO bug has been fixed
-		skillset: Skillset7,
-		limit: u32,
-	) -> Result<Vec<TopScore>, Error> {
-		// let skillset = skillset.into().map(skillset7_to_eo).unwrap_or("");
-		let skillset = skillset7_to_eo(skillset);
-
-		let url = &format!("https://api.etternaonline.com/v2/user/{}/top/{}/{}",
-			username, skillset, limit
-		);
-		println!("Url: {:?}", url);
-		let json = match self.request(|| ureq::get(url))? {
-			(200, json) => json,
-			(400, _) => return Err(Error::UserNotFound),
-			(404, _) => return Err(Error::UserNotFound),
-			(code, _) => return Err(Error::unexpected_response_code(code)),
-		};
+	fn parse_top_scores(&mut self, url: &str) -> Result<Vec<TopScore>, Error> {
+		let json = self.request(|| ureq::get(url))?;
 
 		let mut scores = Vec::new();
-		for score_json in json["data"].as_array().unwrap() {
+		for score_json in json.as_array().unwrap() {
 			let difficulty = difficulty_from_eo(score_json["attributes"]["difficulty"].as_str().unwrap())?;
-
-			let base_skillsets = Skillsets7 {
-				// yes, the api really doesn't return Overall
-				stream: score_json["attributes"]["skillsets"]["Stream"].as_f64().unwrap(),
-				jumpstream: score_json["attributes"]["skillsets"]["Jumpstream"].as_f64().unwrap(),
-				handstream: score_json["attributes"]["skillsets"]["Handstream"].as_f64().unwrap(),
-				stamina: score_json["attributes"]["skillsets"]["Stamina"].as_f64().unwrap(),
-				jackspeed: score_json["attributes"]["skillsets"]["JackSpeed"].as_f64().unwrap(),
-				chordjack: score_json["attributes"]["skillsets"]["Chordjack"].as_f64().unwrap(),
-				technical: score_json["attributes"]["skillsets"]["Technical"].as_f64().unwrap(),
-			};
 
 			scores.push(TopScore {
 				scorekey: score_json["id"].as_str().unwrap().to_owned(),
@@ -266,11 +266,45 @@ impl Session {
 				rate: score_json["attributes"]["rate"].as_f64().unwrap(),
 				difficulty,
 				chartkey: score_json["attributes"]["chartKey"].as_str().unwrap().to_owned(),
-				base_skillsets,
+				base_skillsets: skillsets7_from_eo(&json["attributes"]["skillsets"]),
 			});
 		}
 
 		Ok(scores)
+	}
+
+	/// Retrieve the user's top scores by the given skillset. The number of scores returned is equal
+	/// to `limit`
+	/// 
+	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
+	/// 
+	/// # Example
+	/// ```
+	/// // Retrieve the top 10 chordjack scores of user "kangalioo"
+	/// let scores = session.user_top_skillset_scores("kangalioo", Skillset7::Chordjack, 10)?;
+	/// ```
+	pub fn user_top_skillset_scores(&mut self,
+		username: &str,
+		skillset: Skillset7,
+		limit: u32,
+	) -> Result<Vec<TopScore>, Error> {
+		self.parse_top_scores(&format!(
+			"https://api.etternaonline.com/v2/user/{}/top/{}/{}",
+			username, skillset7_to_eo(skillset), limit
+		))
+	}
+
+	/// Retrieve the user's top 10 scores, sorted by the overall SSR.
+	/// 
+	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
+	/// 
+	/// # Example
+	/// ```
+	/// // Retrieve the top 10 scores of user "kangalioo"
+	/// let scores = session.user_top_10_scores("kangalioo")?;
+	/// ```
+	pub fn user_top_10_scores(&mut self, username: &str) -> Result<Vec<TopScore>, Error> {
+		self.parse_top_scores(&format!("https://api.etternaonline.com/v2/user/{}/top//", username))
 	}
 	
 	/// Retrieve the user's latest 10 scores.
@@ -283,16 +317,12 @@ impl Session {
 	/// let scores = session.user_latest_scores("kangalioo")?;
 	/// ```
 	pub fn user_latest_scores(&mut self, username: &str) -> Result<Vec<LatestScore>, Error> {
-		let json = match self.request(|| ureq::get(
+		let json = self.request(|| ureq::get(
 			&format!("https://api.etternaonline.com/v2/user/{}/latest", username)
-		))? {
-			(200, json) => json,
-			(404, _) => return Err(Error::UserNotFound),
-			(code, _) => return Err(Error::unexpected_response_code(code)),
-		};
+		))?;
 
 		let mut scores = Vec::new();
-		for score_json in json["data"].as_array().unwrap() {
+		for score_json in json.as_array().unwrap() {
 			scores.push(LatestScore {
 				scorekey: score_json["id"].as_str().unwrap().to_owned(),
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
@@ -316,43 +346,77 @@ impl Session {
 	/// let scores = session.user_ranks("kangalioo")?;
 	/// ```
 	pub fn user_ranks_per_skillset(&mut self, username: &str) -> Result<UserRanksPerSkillset, Error> {
-		let json = match self.request(|| ureq::get(
+		let json = self.request(|| ureq::get(
 			&format!("https://api.etternaonline.com/v2/user/{}/ranks", username)
-		))? {
-			(200, json) => json,
-			(404, _) => return Err(Error::UserNotFound),
-			(code, _) => return Err(Error::unexpected_response_code(code)),
-		};
+		))?;
+		let json = &json["attributes"];
 
-		let ranks_json = &json["data"]["attributes"];
 		Ok(UserRanksPerSkillset {
-			overall: ranks_json["Overall"].as_i64().unwrap() as u32,
-			stream: ranks_json["Stream"].as_i64().unwrap() as u32,
-			jumpstream: ranks_json["Jumpstream"].as_i64().unwrap() as u32,
-			handstream: ranks_json["Handstream"].as_i64().unwrap() as u32,
-			stamina: ranks_json["Stamina"].as_i64().unwrap() as u32,
-			jackspeed: ranks_json["JackSpeed"].as_i64().unwrap() as u32,
-			chordjack: ranks_json["Chordjack"].as_i64().unwrap() as u32,
-			technical: ranks_json["Technical"].as_i64().unwrap() as u32,
+			overall: json["Overall"].as_i64().unwrap() as u32,
+			stream: json["Stream"].as_i64().unwrap() as u32,
+			jumpstream: json["Jumpstream"].as_i64().unwrap() as u32,
+			handstream: json["Handstream"].as_i64().unwrap() as u32,
+			stamina: json["Stamina"].as_i64().unwrap() as u32,
+			jackspeed: json["JackSpeed"].as_i64().unwrap() as u32,
+			chordjack: json["Chordjack"].as_i64().unwrap() as u32,
+			technical: json["Technical"].as_i64().unwrap() as u32,
 		})
 	}
 
-	// pub fn user_top_scores_per_skillset(&mut self,
-	// 	username: &str,
-	// ) -> Result<(UserTopScoresPerSkillset, UserRanksPerSkillset), Error> {
-	// 	todo!(); // TODO: Waiting for information from rop
-	// }
+	/// Retrieve the user's best scores for each skillset. The number of scores yielded is not
+	/// documented in the EO API, but according to my experiments it's 25.
+	/// 
+	/// If there is no user with the specified username, `Error::UserNotFound` is returned.
+	/// 
+	/// # Example
+	/// ```rust
+	/// let top_scores = session.user_top_scores_per_skillset("kangalioo");
+	/// println!("kangalioo's 5th best handstream score is {:?}", top_scores.handstream[4]);
+	/// ```
+	pub fn user_top_scores_per_skillset(&mut self,
+		username: &str,
+	) -> Result<UserTopScoresPerSkillset, Error> {
+		let json = self.request(|| ureq::get(
+			&format!("https://api.etternaonline.com/v2/user/{}/all", username)
+		))?;
 
-	// pub fn test(&mut self) -> Result<(), Error> {
-	// 	println!("{:#?} {:#?}",
-	// 		// self.user_top_scores("kangalioo", Skillset7::Technical, 5)?,
-	// 		// self.user_top_scores("kangalioo", Skillset7::Jumpstream, 5)?,
-	// 		// self.user_latest_scores("kangalioo"),
-	// 		// self.user_latest_scores("theropfather"),
-	// 		// self.user_ranks("kangalioo"),
-	// 		// self.user_ranks("theropfather"),
-	// 	);
+		let parse_skillset_top_scores = |array: &serde_json::Value| {
+			let mut scores = Vec::new();
+			for score_json in array.as_array().unwrap() {
+				scores.push(TopScorePerSkillset {
+					song_name: score_json["songname"].as_str().unwrap().to_owned(),
+					rate: score_json["user_chart_rate_rate"].as_f64().unwrap(),
+					wifescore: score_json["wifescore"].as_f64().unwrap(),
+					chartkey: score_json["chartkey"].as_str().unwrap().to_owned(),
+					scorekey: score_json["scorekey"].as_str().unwrap().to_owned(),
+					difficulty: difficulty_from_eo(score_json["difficulty"].as_str().unwrap())?,
+					skillsets: skillsets8_from_eo(&score_json),
+				})
+			}
+
+			Ok(scores)
+		};
+
+		Ok(UserTopScoresPerSkillset {
+			overall: parse_skillset_top_scores(&json["attributes"]["Overall"])?,
+			stream: parse_skillset_top_scores(&json["attributes"]["Stream"])?,
+			jumpstream: parse_skillset_top_scores(&json["attributes"]["Jumpstream"])?,
+			handstream: parse_skillset_top_scores(&json["attributes"]["Handstream"])?,
+			stamina: parse_skillset_top_scores(&json["attributes"]["Stamina"])?,
+			jackspeed: parse_skillset_top_scores(&json["attributes"]["JackSpeed"])?,
+			chordjack: parse_skillset_top_scores(&json["attributes"]["Chordjack"])?,
+			technical: parse_skillset_top_scores(&json["attributes"]["Technical"])?,
+		})
+	}
+
+	pub fn test(&mut self) -> Result<(), Error> {
+		// println!("{:#?}", self.user_top_skillset_scores("kangalioo", Skillset7::Technical, 3)?);
+		// println!("{:#?}", self.user_top_10_scores("kangalioo")?);
+		// println!("{:#?}", self.user_details("kangalioo")?);
+		// println!("{:#?}", self.user_latest_scores("kangalioo")?);
+		// println!("{:#?}", self.user_ranks_per_skillset("kangalioo")?);
+		// println!("{:#?}", self.user_top_scores_per_skillset("kangalioo")?);
 		
-	// 	Ok(())
-	// }
+		Ok(())
+	}
 }

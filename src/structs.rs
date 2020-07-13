@@ -8,7 +8,7 @@ pub struct UserDetails {
 	pub country_code: String,
 	pub player_rating: f64,
 	pub default_modifiers: String,
-	pub skillsets: Skillsets8,
+	pub skillsets: Skillsets7,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -111,22 +111,25 @@ pub struct UserRanksPerSkillset {
 	pub technical: u32,
 }
 
-// pub struct TopScorePerSkillset {
-// 	pub song_name: String,
-// 	pub rate: f64,
-// 	pub wifescore: f64,
-// 	pub chartkey: String,
-// 	pub scorekey: String,
-// 	pub difficulty: Difficulty,
-// }
+#[derive(Debug, Clone, PartialEq)]
+pub struct TopScorePerSkillset {
+	pub song_name: String,
+	pub rate: f64,
+	pub wifescore: f64,
+	pub chartkey: String,
+	pub scorekey: String,
+	pub difficulty: Difficulty,
+	pub skillsets: Skillsets8,
+}
 
-// pub struct UserTopScoresPerSkillset {
-// 	pub overall: TopScorePerSkillset,
-// 	pub stream: TopScorePerSkillset,
-// 	pub jumpstream: TopScorePerSkillset,
-// 	pub handstream: TopScorePerSkillset,
-// 	pub stamina: TopScorePerSkillset,
-// 	pub jackspeed: TopScorePerSkillset,
-// 	pub chordjack: TopScorePerSkillset,
-// 	pub technical: TopScorePerSkillset,
-// }
+#[derive(Debug, Clone, PartialEq)]
+pub struct UserTopScoresPerSkillset {
+	pub overall: Vec<TopScorePerSkillset>,
+	pub stream: Vec<TopScorePerSkillset>,
+	pub jumpstream: Vec<TopScorePerSkillset>,
+	pub handstream: Vec<TopScorePerSkillset>,
+	pub stamina: Vec<TopScorePerSkillset>,
+	pub jackspeed: Vec<TopScorePerSkillset>,
+	pub chordjack: Vec<TopScorePerSkillset>,
+	pub technical: Vec<TopScorePerSkillset>,
+}
