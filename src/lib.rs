@@ -5,6 +5,11 @@ This crate provides an ergonomic wrapper around the v2 API of
 [EtternaOnline](https://etternaonline.com) (commonly abbreviated "EO"). The EO API requires a valid
 username and password combination to expose its functions. You will also need an API token called
 "client data".
+
+# Usage
+For information on usage, see [`Session`]
+
+<!-- EXAMPLE HERE, 30 LOC OR SO -->
 */
 
 mod structs;
@@ -91,13 +96,81 @@ fn skillsets8_from_eo(json: &serde_json::Value) -> Skillsets8 {
 	}
 }
 
-/// This is an EtternaOnline API session. It automatically keeps cares of expiring tokens by
-/// automatically logging back in when the login token expires.
+fn note_type_from_eo(note_type: &serde_json::Value) -> Result<NoteType, Error> {
+	match note_type.as_i64().unwrap() {
+		1 => Ok(NoteType::Tap),
+		2 => Ok(NoteType::HoldHead),
+		3 => Ok(NoteType::HoldTail),
+		4 => Ok(NoteType::Mine),
+		5 => Ok(NoteType::Lift),
+		6 => Ok(NoteType::Keysound),
+		7 => Ok(NoteType::Fake),
+		other => Err(Error::UnexpectedResponse(format!("Unexpected note type integer {}", other))),
+	}
+}
+
+fn parse_judgements(json: &serde_json::Value) -> Judgements {
+	Judgements {
+		marvelouses: json["marvelous"].as_i64().unwrap() as u32,
+		perfects: json["perfect"].as_i64().unwrap() as u32,
+		greats: json["great"].as_i64().unwrap() as u32,
+		goods: json["good"].as_i64().unwrap() as u32,
+		bads: json["bad"].as_i64().unwrap() as u32,
+		misss: json["miss"].as_i64().unwrap() as u32,
+		hit_mines: json["hitMines"].as_i64().unwrap() as u32,
+		held_holds: json["heldHold"].as_i64().unwrap() as u32,
+		let_go_holds: json["letGoHold"].as_i64().unwrap() as u32,
+		missed_holds: json["missedHold"].as_i64().unwrap() as u32,
+	}
+}
+
+fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
+	let replay_str = match json.as_array().unwrap()[0].as_str() {
+		Some(replay_str) => replay_str,
+		None => return Ok(None),
+	};
+
+	let json: serde_json::Value = serde_json::from_str(replay_str)
+		.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
+
+	let mut notes = Vec::new();
+	for note_json in json.as_array().unwrap() {
+		let note_json = note_json.as_array().unwrap();
+		notes.push(ReplayNote {
+			time: note_json[0].as_f64().unwrap(),
+			deviation: note_json[1].as_f64().unwrap() / 1000.0,
+			lane: note_json[2].as_i64().unwrap() as u8,
+			note_type: note_type_from_eo(&note_json[3])?,
+			tick: note_json[4].as_i64().unwrap() as u32,
+		});
+	}
+
+	Ok(Some(Replay { notes }))
+}
+
+/// EtternaOnline API session client, handles all requests to and from EtternaOnline.
+/// 
+/// This wrapper keeps cares of expiring tokens by automatically logging back in when the login
+/// token expires.
 /// 
 /// This session has rate-limiting built-in. Please do make use of it - the EO server is brittle and
 /// funded entirely by donations.
 /// 
 /// Initialize a session using [`Session::new_from_login`]
+/// 
+/// # Conventions
+/// Etterna terminology:
+/// - The calculated difficulty for a chart is called MSD: Mina standardized difficulty.
+/// - The score rating - which is variable depending on your wifescore - is called SSR:
+///   score-specific-rating
+/// 
+/// The wifescores in this library are scaled to a maximum of `1.0`. This is means that a wifescore
+/// of 100% corresponds to a value of `1.0` (as opposed to `100.0`).
+/// 
+/// Skillset data comes in two flavors: with overall rating and without overall rating. Depending on
+/// which API function you call, you get one or the either. To avoid ambiguity, there's:
+/// - Without overall: [`Skillsets7`] and [`Skillset7`] 
+/// - With overall: [`Skillsets8`] and [`Skillset8`]
 /// 
 /// # Example
 /// ```rust
@@ -108,7 +181,13 @@ fn skillsets8_from_eo(json: &serde_json::Value) -> Skillsets8 {
 /// 	std::time::Duration::from_millis(2000), // Wait 2s inbetween requests
 /// );
 /// 
-/// println!("Details about kangalioo: {:?}", session.user_details("kangalioo"));
+/// println!("Details about kangalioo: {:?}", session.user_details("kangalioo")?);
+/// 
+/// let best_score = session.user_top_10_scores("kangalioo")?[0];
+/// println!(
+/// 	"kangalioo's best score has {} misses",
+/// 	session.score_data(best_score)?.judgements.misses
+/// );
 /// ```
 pub struct Session {
 	// This stuff is needed for re-login
@@ -247,7 +326,7 @@ impl Session {
 			country_code: json["countryCode"].as_str().unwrap().to_owned(),
 			player_rating: json["playerRating"].as_f64().unwrap(),
 			default_modifiers: json["defaultModifiers"].as_str().unwrap().to_owned(),
-			skillsets: skillsets7_from_eo(&json["skillsets"]),
+			rating: skillsets7_from_eo(&json["skillsets"]),
 		})
 	}
 	
@@ -258,15 +337,16 @@ impl Session {
 		for score_json in json.as_array().unwrap() {
 			let difficulty = difficulty_from_eo(score_json["attributes"]["difficulty"].as_str().unwrap())?;
 
+			// println!("{:#?}", json);
 			scores.push(TopScore {
 				scorekey: score_json["id"].as_str().unwrap().to_owned(),
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
 				ssr_overall: score_json["attributes"]["Overall"].as_f64().unwrap(),
-				wifescore: score_json["attributes"]["wife"].as_f64().unwrap(),
+				wifescore: score_json["attributes"]["wife"].as_f64().unwrap() / 100.0,
 				rate: score_json["attributes"]["rate"].as_f64().unwrap(),
 				difficulty,
 				chartkey: score_json["attributes"]["chartKey"].as_str().unwrap().to_owned(),
-				base_skillsets: skillsets7_from_eo(&json["attributes"]["skillsets"]),
+				ssr: skillsets7_from_eo(&score_json["attributes"]["skillsets"]),
 			});
 		}
 
@@ -327,7 +407,7 @@ impl Session {
 				scorekey: score_json["id"].as_str().unwrap().to_owned(),
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
 				ssr_overall: score_json["attributes"]["Overall"].as_f64().unwrap(),
-				wifescore: score_json["attributes"]["wife"].as_f64().unwrap(),
+				wifescore: score_json["attributes"]["wife"].as_f64().unwrap() / 100.0,
 				rate: score_json["attributes"]["rate"].as_f64().unwrap(),
 				difficulty: difficulty_from_eo(score_json["attributes"]["difficulty"].as_str().unwrap())?,
 			});
@@ -370,7 +450,7 @@ impl Session {
 	/// 
 	/// # Example
 	/// ```rust
-	/// let top_scores = session.user_top_scores_per_skillset("kangalioo");
+	/// let top_scores = session.user_top_scores_per_skillset("kangalioo")?;
 	/// println!("kangalioo's 5th best handstream score is {:?}", top_scores.handstream[4]);
 	/// ```
 	pub fn user_top_scores_per_skillset(&mut self,
@@ -390,7 +470,7 @@ impl Session {
 					chartkey: score_json["chartkey"].as_str().unwrap().to_owned(),
 					scorekey: score_json["scorekey"].as_str().unwrap().to_owned(),
 					difficulty: difficulty_from_eo(score_json["difficulty"].as_str().unwrap())?,
-					skillsets: skillsets8_from_eo(&score_json),
+					ssr: skillsets8_from_eo(&score_json),
 				})
 			}
 
@@ -409,13 +489,99 @@ impl Session {
 		})
 	}
 
+	/// Retrieves detailed metadata and the replay data about the score with the given scorekey.
+	/// 
+	/// If the scorekey doesn't exist `Error::ScoreNotFound` is returned.
+	/// 
+	/// # Example
+	/// ```
+	/// let score_info = session.score_data("S65565b5bc377c6d78b60c0aecfd9e05955b4cf63")?;
+	/// ```
+	pub fn score_data(&mut self, scorekey: &str) -> Result<ScoreData, Error> {
+		let json = self.request(|| ureq::get(
+			&format!("https://api.etternaonline.com/v2/score/{}", scorekey)
+		))?;
+
+		let scorekey = json["id"].as_str().unwrap().to_owned();
+		let json = &json["attributes"];
+
+		Ok(ScoreData {
+			scorekey,
+			wifescore: json["wife"].as_f64().unwrap(),
+			rate: json["rate"].as_f64().unwrap(),
+			max_combo: json["maxCombo"].as_i64().unwrap() as u32,
+			is_valid: json["valid"].as_bool().unwrap(),
+			has_chord_cohesion: !json["nocc"].as_bool().unwrap(),
+			song_name: json["song"]["songName"].as_str().unwrap().to_owned(),
+			artist: json["song"]["artist"].as_str().unwrap().to_owned(),
+			song_id: json["song"]["id"].as_i64().unwrap() as u32,
+			ssr: skillsets8_from_eo(&json["skillsets"]),
+			judgements: parse_judgements(&json["judgements"]),
+			replay: parse_replay(&json["replay"])?,
+			user: ScoreDataUser {
+				username: json["user"]["username"].as_str().unwrap().to_owned(),
+				avatar: json["user"]["avatar"].as_str().unwrap().to_owned(),
+				country_code: json["user"]["countryCode"].as_str().unwrap().to_owned(),
+				ssr_overall: json["user"]["Overall"].as_f64().unwrap(),
+			},
+		})
+	}
+
+	pub fn chart_leaderboards(&mut self, chartkey: &str) -> Result<Vec<ChartLeaderboardScore>, Error> {
+		let json = self.request(|| ureq::get(
+			&format!("https://api.etternaonline.com/v2/charts/{}/leaderboards", chartkey)
+		))?;
+
+		let mut scores = Vec::new();
+		for json in json.as_array().unwrap() {
+			let scorekey = json["id"].as_str().unwrap().to_owned();
+			let json = &json["attributes"];
+
+			scores.push(ChartLeaderboardScore {
+				scorekey,
+				wifescore: json["wife"].as_f64().unwrap() / 100.0,
+				max_combo: json["maxCombo"].as_i64().unwrap() as u32,
+				is_valid: json["valid"].as_bool().unwrap(),
+				modifiers: json["modifiers"].as_str().unwrap().to_owned(),
+				has_chord_cohesion: !json["noCC"].as_bool().unwrap(),
+				rate: json["rate"].as_f64().unwrap(),
+				datetime: json["datetime"].as_str().unwrap().to_owned(),
+				ssr: skillsets8_from_eo(&json["skillsets"]),
+				judgements: parse_judgements(&json["judgements"]),
+				has_replay: json["hasReplay"].as_bool().unwrap(), // API docs are wrong again
+				user: ScoreDataUser {
+					username: json["user"]["userName"].as_str().unwrap().to_owned(),
+					avatar: json["user"]["avatar"].as_str().unwrap().to_owned(),
+					country_code: json["user"]["countryCode"].as_str().unwrap().to_owned(),
+					ssr_overall: json["user"]["playerRating"].as_f64().unwrap(),
+				},
+			});
+		}
+
+		Ok(scores)
+	}
+
 	pub fn test(&mut self) -> Result<(), Error> {
+		let best_score = &self.user_top_10_scores("kangalioo")?[0];
+
 		// println!("{:#?}", self.user_top_skillset_scores("kangalioo", Skillset7::Technical, 3)?);
 		// println!("{:#?}", self.user_top_10_scores("kangalioo")?);
 		// println!("{:#?}", self.user_details("kangalioo")?);
 		// println!("{:#?}", self.user_latest_scores("kangalioo")?);
 		// println!("{:#?}", self.user_ranks_per_skillset("kangalioo")?);
 		// println!("{:#?}", self.user_top_scores_per_skillset("kangalioo")?);
+		// println!("{:#?}", self.score_data(&best_score.scorekey));
+		// println!("{:#?}", self.chart_leaderboards("Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d2"));
+
+		// check if wifescores are all normalized to a max of 1.0
+		// println!("{} {} {} {} {} {}",
+		// 	self.user_top_skillset_scores("kangalioo", Skillset7::Stream, 3)?[0].wifescore,
+		// 	self.user_top_10_scores("kangalioo")?[0].wifescore,
+		// 	self.user_latest_scores("kangalioo")?[0].wifescore,
+		// 	self.user_top_scores_per_skillset("kangalioo")?.jackspeed[0].wifescore,
+		// 	self.score_data(&best_score.scorekey)?.wifescore,
+		// 	self.chart_leaderboards("Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d2")?[0].wifescore,
+		// );
 		
 		Ok(())
 	}

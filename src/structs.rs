@@ -8,7 +8,7 @@ pub struct UserDetails {
 	pub country_code: String,
 	pub player_rating: f64,
 	pub default_modifiers: String,
-	pub skillsets: Skillsets7,
+	pub rating: Skillsets7,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -51,22 +51,16 @@ pub struct TopScore {
 	/// The key of the chart, for example `X6ea10eba800cfcbfe462e902da3d3cdfb8d546d9`
 	pub chartkey: String,
 	/// The MSD of the chart on 1.0x
-	pub base_skillsets: Skillsets7,
+	pub ssr: Skillsets7,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LatestScore {
-	/// The scorekey, for example `S65565b5bc377c6d78b60c0aecfd9e05955b4cf63`
 	pub scorekey: String,
-	/// The song name, for example `Game Time`
 	pub song_name: String,
-	/// The overall score-specific-rating
 	pub ssr_overall: f64,
-	/// Wifescore of the score, from 0.0 to 100.0
 	pub wifescore: f64,
-	/// The music rate
 	pub rate: f64,
-	/// The chart difficulty
 	pub difficulty: Difficulty,
 
 }
@@ -119,7 +113,7 @@ pub struct TopScorePerSkillset {
 	pub chartkey: String,
 	pub scorekey: String,
 	pub difficulty: Difficulty,
-	pub skillsets: Skillsets8,
+	pub ssr: Skillsets8,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -132,4 +126,91 @@ pub struct UserTopScoresPerSkillset {
 	pub jackspeed: Vec<TopScorePerSkillset>,
 	pub chordjack: Vec<TopScorePerSkillset>,
 	pub technical: Vec<TopScorePerSkillset>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScoreData {
+	pub scorekey: String,
+	pub ssr: Skillsets8,
+	/// 0.0 = 0%, 1.0 = 100%
+	pub wifescore: f64,
+	pub rate: f64,
+	pub max_combo: u32,
+	pub is_valid: bool,
+	pub has_chord_cohesion: bool,
+	pub judgements: Judgements,
+	pub replay: Option<Replay>,
+	pub user: ScoreDataUser,
+	pub song_name: String,
+	pub artist: String,
+	pub song_id: u32,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Default, Hash)]
+pub struct Judgements {
+	pub marvelouses: u32,
+	pub perfects: u32,
+	pub greats: u32,
+	pub goods: u32,
+	pub bads: u32,
+	pub misss: u32,
+	pub hit_mines: u32,
+	pub held_holds: u32,
+	pub let_go_holds: u32,
+	pub missed_holds: u32,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ScoreDataUser {
+	pub username: String,
+	pub avatar: String,
+	pub country_code: String,
+	pub ssr_overall: f64,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Replay {
+	pub notes: Vec<ReplayNote>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ReplayNote {
+	/// The position of the note inside the chart, in seconds
+	pub time: f64,
+	/// The offset that the note was hit with, in seconds. A 50ms early hit would be `-0.05`
+	pub deviation: f64,
+	/// The position of the ntoe inside the chart, in ticks (192nds)
+	pub tick: u32,
+	/// The lane/column that this note appears on. 0-3 for 4k, 0-5 for 6k
+	pub lane: u8,
+	/// Type of the note (tap, hold, mine etc.)
+	pub note_type: NoteType,
+}
+
+#[repr(u8)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum NoteType {
+	Tap = 1,
+	HoldHead = 2,
+	HoldTail = 3,
+	Mine = 4,
+	Lift = 5,
+	Keysound = 6,
+	Fake = 7,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChartLeaderboardScore {
+	pub scorekey: String,
+	pub ssr: Skillsets8,
+	pub wifescore: f64,
+	pub rate: f64,
+	pub max_combo: u32,
+	pub is_valid: bool,
+	pub has_chord_cohesion: bool,
+	pub datetime: String,
+	pub modifiers: String,
+	pub has_replay: bool,
+	pub judgements: Judgements,
+	pub user: ScoreDataUser,
 }
