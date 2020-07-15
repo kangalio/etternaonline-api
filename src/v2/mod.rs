@@ -475,7 +475,7 @@ impl Session {
 	) -> Result<UserTopScoresPerSkillset, Error> {
 		let json = self.get(&format!("user/{}/all", username))?;
 
-		let parse_skillset_top_scores = |array: &serde_json::Value| {
+		let parse_skillset_top_scores = |array: &serde_json::Value| -> Result<Vec<_>, Error> {
 			let mut scores = Vec::new();
 			for score_json in array.as_array().unwrap() {
 				scores.push(TopScorePerSkillset {

@@ -13,6 +13,7 @@ For detailed documentation usage, see [`v2::Session`] or [`web::Session`]
 // THIS IS MY TODO LIST:
 // - Remove thiserror dependency
 
+mod extension_traits;
 mod structs;
 pub use structs::*;
 pub mod v2;
@@ -22,14 +23,11 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
+	// Normal errors
 	#[error("User not found")]
 	UserNotFound,
 	#[error("Username and password combination not found")]
 	InvalidLogin,
-	#[error("Server response was malformed or unsensical")]
-	UnexpectedResponse(String),
-	#[error("Error while parsing the json sent by the server")]
-	InvalidJson(String),
 	#[error("Score not found")]
 	ScoreNotFound,
 	#[error("Chart not tracked")]
@@ -46,12 +44,32 @@ pub enum Error {
 	InvalidXml,
 	#[error("No users registered")]
 	NoUsersFound,
+
+	// Meta errors
+	#[error("Server response was malformed or unsensical")]
+	UnexpectedResponse(String),
+	#[error("Error while parsing the json sent by the server")]
+	InvalidJson(String),
 	#[error("Web server is down")]
 	ServerIsDown,
-	#[error("An unknown EO API error")]
+	#[error("Some network error")]
+	NetworkError(String),
+	#[error("Server returned an unknown error")]
 	UnknownApiError(String),
+	#[error("Server sent a JSON payload that doesn't match expectations")]
+	InvalidJsonStructure(Option<Box<dyn std::error::Error>>),
 	#[error("Server timed out")]
 	Timeout,
+}
+
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+		if e.kind() == std::io::ErrorKind::TimedOut {
+			Self::Timeout
+		} else {
+			Self::NetworkError(e.to_string())
+		}
+    }
 }
 
 fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time::Duration) {
