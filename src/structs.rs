@@ -65,7 +65,7 @@ pub struct LatestScore {
 
 /// Skillsets enum, excluding overall
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum Skillset7 {
+pub enum Skillset {
 	Stream,
 	Jumpstream,
 	Handstream,
@@ -75,17 +75,39 @@ pub enum Skillset7 {
 	Technical,
 }
 
-/// Skillsets enum, including overall
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum Skillset8 {
-	Overall,
-	Stream,
-	Jumpstream,
-	Handstream,
-	Stamina,
-	Jackspeed,
-	Chordjack,
-	Technical,
+impl Skillset {
+	/// Converts user input into a skillset variant, case-insensitively. Most community-accepted
+	/// spellings of the skillsets are recognized.
+	/// 
+	/// Returns `None` If the given user input can't be parsed.
+	/// 
+	/// # Example
+	/// ```rust
+	/// # use etternaonline_api::Skillset;
+	/// assert_eq!(Some(Skillset::Jumpstream), Skillset::from_user_input("js"));
+	/// assert_eq!(Some(Skillset::Jackspeed), Skillset::from_user_input("Jacks"));
+	/// assert_eq!(Some(Skillset::Jackspeed), Skillset::from_user_input("JACKSPEED"));
+	/// assert_eq!(None, Skillset::from_user_input("handstreams"));
+	/// ```
+	pub fn from_user_input(input: &str) -> Option<Self> {
+		match &input.to_lowercase() as &str {
+			"stream" => Some(Skillset::Stream),
+			"js" | "jumpstream" => Some(Skillset::Jumpstream),
+			"hs" | "handstream" => Some(Skillset::Handstream),
+			"stam" | "stamina" => Some(Skillset::Stamina),
+			"jack" | "jacks" | "jackspeed" => Some(Skillset::Jackspeed),
+			"cj" | "chordjack" | "chordjacks" => Some(Skillset::Chordjack),
+			"tech" | "technical" => Some(Skillset::Technical),
+			_ => None,
+		}
+	}
+}
+
+impl std::fmt::Display for Skillset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+
 }
 
 /// Chart difficulty enum
@@ -136,6 +158,7 @@ pub struct UserTopScoresPerSkillset {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoreData {
 	pub scorekey: String,
+	pub modifiers: String,
 	pub ssr: Skillsets,
 	pub wifescore: f64,
 	pub rate: f64,
@@ -158,7 +181,7 @@ pub struct Judgements {
 	pub greats: u32,
 	pub goods: u32,
 	pub bads: u32,
-	pub misss: u32,
+	pub misses: u32,
 	pub hit_mines: u32,
 	pub held_holds: u32,
 	pub let_go_holds: u32,
