@@ -15,15 +15,15 @@ fn difficulty_from_eo(string: &str) -> Result<Difficulty, Error> {
 	})
 }
 
-fn skillset_to_eo(skillset: Skillset) -> &'static str {
+fn skillset_to_eo(skillset: Skillset7) -> &'static str {
 	match skillset {
-		Skillset::Stream => "Stream",
-		Skillset::Jumpstream => "Jumpstream",
-		Skillset::Handstream => "Handstream",
-		Skillset::Stamina => "Stamina",
-		Skillset::Jackspeed => "JackSpeed",
-		Skillset::Chordjack => "Chordjack",
-		Skillset::Technical => "Technical",
+		Skillset7::Stream => "Stream",
+		Skillset7::Jumpstream => "Jumpstream",
+		Skillset7::Handstream => "Handstream",
+		Skillset7::Stamina => "Stamina",
+		Skillset7::Jackspeed => "JackSpeed",
+		Skillset7::Chordjack => "Chordjack",
+		Skillset7::Technical => "Technical",
 	}
 }
 
@@ -377,11 +377,11 @@ impl Session {
 	/// # Example
 	/// ```
 	/// // Retrieve the top 10 chordjack scores of user "kangalioo"
-	/// let scores = session.user_top_skillset_scores("kangalioo", Skillset::Chordjack, 10)?;
+	/// let scores = session.user_top_skillset_scores("kangalioo", Skillset7::Chordjack, 10)?;
 	/// ```
 	pub fn user_top_skillset_scores(&mut self,
 		username: &str,
-		skillset: Skillset,
+		skillset: Skillset7,
 		limit: u32,
 	) -> Result<Vec<TopScore>, Error> {
 		self.parse_top_scores(&format!(
@@ -817,7 +817,7 @@ impl Session {
 	// pub fn test(&mut self) -> Result<(), Error> {
 		// let best_score = &self.user_top_10_scores("kangalioo")?[0];
 
-		// println!("{:#?}", self.user_top_skillset_scores("kangalioo", Skillset::Technical, 3)?);
+		// println!("{:#?}", self.user_top_skillset_scores("kangalioo", Skillset7::Technical, 3)?);
 		// println!("{:#?}", self.user_top_10_scores("kangalioo")?);
 		// println!("{:#?}", self.user_details("kangalioo")?);
 		// println!("{:#?}", self.user_latest_scores("kangalioo")?);
@@ -838,7 +838,7 @@ impl Session {
 
 		// check if wifescores are all normalized to a max of 1.0
 		// println!("{} {} {} {} {} {}",
-		// 	self.user_top_skillset_scores("kangalioo", Skillset::Stream, 3)?[0].wifescore,
+		// 	self.user_top_skillset_scores("kangalioo", Skillset7::Stream, 3)?[0].wifescore,
 		// 	self.user_top_10_scores("kangalioo")?[0].wifescore,
 		// 	self.user_latest_scores("kangalioo")?[0].wifescore,
 		// 	self.user_top_scores_per_skillset("kangalioo")?.jackspeed[0].wifescore,
