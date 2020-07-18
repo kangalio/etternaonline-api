@@ -51,6 +51,7 @@ pub struct UserRanksPerSkillset {
 	pub chordjack: u32,
 	pub technical: u32,
 }
+crate::impl_get8!(UserRanksPerSkillset, u32, a, a.overall);
 
 /// Score from a [top scores per skillset enumeration](super::Session::user_top_scores_per_skillset)
 #[derive(Debug, Clone, PartialEq)]

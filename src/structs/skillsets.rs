@@ -11,6 +11,7 @@ pub struct Skillsets {
 	pub chordjack: f64,
 	pub technical: f64,
 }
+crate::impl_get8!(Skillsets, f64, a, a.overall());
 
 impl Skillsets {
 	/// Return the overall skillset, as derived from the 7 individual skillsets
@@ -23,23 +24,6 @@ impl Skillsets {
 			+ self.chordjack
 			+ self.technical)
 			/ 7.0
-	}
-
-	pub fn get7(&self, skillset: Skillset7) -> f64 {
-		self.get8(skillset.into())
-	}
-
-	pub fn get8(&self, skillset: Skillset8) -> f64 {
-		match skillset {
-			Skillset8::Overall => self.overall(),
-			Skillset8::Stream => self.stream,
-			Skillset8::Jumpstream => self.jumpstream,
-			Skillset8::Handstream => self.handstream,
-			Skillset8::Stamina => self.stamina,
-			Skillset8::Jackspeed => self.jackspeed,
-			Skillset8::Chordjack => self.chordjack,
-			Skillset8::Technical => self.technical,
-		}
 	}
 }
 

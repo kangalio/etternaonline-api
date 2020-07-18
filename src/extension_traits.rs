@@ -10,9 +10,9 @@ impl<T> ApiUnwrap<T> for Option<T> {
 	}
 }
 
-impl<T, E: std::error::Error> ApiUnwrap<T> for Result<T, E> where E: 'static {
+impl<T, E: std::error::Error + 'static + Send + Sync> ApiUnwrap<T> for Result<T, E> where E: 'static {
 	fn json_unwrap(self) -> Result<T, Error> {
-		self.map_err(|e| Error::InvalidJsonStructure(Some(Box::new(e))))
+		self.map_err(|e| Error::InvalidJsonStructure(Some(e.to_string())))
 	}
 }
 

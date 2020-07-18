@@ -14,14 +14,14 @@ For detailed documentation usage, see [`v2::Session`] or [`web::Session`]
 // - Remove thiserror dependency
 
 mod extension_traits;
-mod structs;
+#[macro_use] mod structs;
 pub use structs::*;
 pub mod v2;
 pub mod web;
 
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum Error {
 	// Normal errors
 	#[error("User not found")]
@@ -57,7 +57,7 @@ pub enum Error {
 	#[error("Server returned an unknown error")]
 	UnknownApiError(String),
 	#[error("Server sent a JSON payload that doesn't match expectations")]
-	InvalidJsonStructure(Option<Box<dyn std::error::Error>>),
+	InvalidJsonStructure(Option<String>),
 	#[error("Server timed out")]
 	Timeout,
 }
@@ -70,6 +70,29 @@ impl From<std::io::Error> for Error {
 			Self::NetworkError(e.to_string())
 		}
     }
+}
+
+// this needs to be here for some reason, and it also needs to be publically accessible because MACROS
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_get8 {
+	($struct_type:ty, $return_type:ty, $self_:ident, $overall_getter:expr) => {
+		impl $struct_type {
+			pub fn get(&self, skillset: impl Into<Skillset8>) -> $return_type {
+				let $self_ = self;
+				match skillset.into() {
+					Skillset8::Overall => $overall_getter,
+					Skillset8::Stream => self.stream,
+					Skillset8::Jumpstream => self.jumpstream,
+					Skillset8::Handstream => self.handstream,
+					Skillset8::Stamina => self.stamina,
+					Skillset8::Jackspeed => self.jackspeed,
+					Skillset8::Chordjack => self.chordjack,
+					Skillset8::Technical => self.technical,
+				}
+			}
+		}
+	}
 }
 
 fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time::Duration) {
