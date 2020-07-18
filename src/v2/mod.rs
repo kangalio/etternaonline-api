@@ -340,7 +340,10 @@ impl Session {
 			avatar_url: json["avatar"].as_str().unwrap().to_owned(),
 			country_code: json["countryCode"].as_str().unwrap().to_owned(),
 			player_rating: json["playerRating"].as_f64().unwrap(),
-			default_modifiers: json["defaultModifiers"].as_str().unwrap().to_owned(),
+			default_modifiers: match json["defaultModifiers"].as_str().unwrap() {
+				"" => None,
+				modifiers => Some(modifiers.to_owned()),
+			},
 			rating: skillsets_from_eo(&json["skillsets"]),
 		})
 	}

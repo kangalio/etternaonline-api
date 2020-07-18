@@ -10,7 +10,7 @@ pub struct UserDetails {
 	pub avatar_url: String,
 	pub country_code: String,
 	pub player_rating: f64,
-	pub default_modifiers: String,
+	pub default_modifiers: Option<String>,
 	pub rating: Skillsets,
 }
 
