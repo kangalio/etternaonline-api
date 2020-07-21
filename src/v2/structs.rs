@@ -2,6 +2,7 @@ pub use crate::structs::*;
 
 /// Details about a user. See [`Session::user_details`](super::Session::user_details)
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserDetails {
 	pub username: String,
 	pub about_me: String,
@@ -16,6 +17,7 @@ pub struct UserDetails {
 
 /// Score from a top scores enumeration like [`Session::user_top_10_scores`](super::Session::user_top_10_scores)
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TopScore {
 	pub scorekey: String,
 	pub song_name: String,
@@ -29,6 +31,7 @@ pub struct TopScore {
 
 /// Score from a latest scores enumeration like [`Session::user_latest_scores`](super::Session::user_latest_scores)
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LatestScore {
 	pub scorekey: String,
 	pub song_name: String,
@@ -41,6 +44,7 @@ pub struct LatestScore {
 
 /// Global ranks in each skillset category. See [`Session::user_ranks_per_skillset`](super::Session::user_ranks_per_skillset)
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserRanksPerSkillset {
 	pub overall: u32,
 	pub stream: u32,
@@ -55,6 +59,7 @@ crate::impl_get8!(UserRanksPerSkillset, u32, a, a.overall);
 
 /// Score from a [top scores per skillset enumeration](super::Session::user_top_scores_per_skillset)
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TopScorePerSkillset {
 	pub song_name: String,
 	pub rate: f64,
@@ -67,6 +72,7 @@ pub struct TopScorePerSkillset {
 
 /// User's best scores in each skillset category. See [`Session::user_top_scores_per_skillset`](super::Session::user_top_scores_per_skillset)
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserTopScoresPerSkillset {
 	pub overall: Vec<TopScorePerSkillset>,
 	pub stream: Vec<TopScorePerSkillset>,
@@ -80,6 +86,7 @@ pub struct UserTopScoresPerSkillset {
 
 /// Generic information about a score
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreData {
 	pub scorekey: String,
 	pub modifiers: String,
@@ -99,6 +106,7 @@ pub struct ScoreData {
 
 /// User information contained within a score information struct
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreUser {
 	pub username: String,
 	pub avatar: String,
@@ -108,12 +116,14 @@ pub struct ScoreUser {
 
 /// Replay data, contains [`ReplayNote`]
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Replay {
 	pub notes: Vec<ReplayNote>,
 }
 
 /// A singular note, used inside [`Replay`]
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ReplayNote {
 	/// The position of the note inside the chart, in seconds
 	pub time: f64,
@@ -129,6 +139,7 @@ pub struct ReplayNote {
 
 /// Score information in the context of a [chart leaderboard](super::Session::chart_leaderboard)
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartLeaderboardScore {
 	pub scorekey: String,
 	pub ssr: Skillsets,
@@ -146,6 +157,7 @@ pub struct ChartLeaderboardScore {
 
 /// Entry in a score leaderboard
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LeaderboardEntry {
 	pub user: ScoreUser,
 	pub rating: Skillsets,
@@ -153,6 +165,7 @@ pub struct LeaderboardEntry {
 
 /// Score goal
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreGoal {
 	pub chartkey: String,
 	pub rate: f64,

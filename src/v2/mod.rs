@@ -320,6 +320,8 @@ impl Session {
 
 	/// Retrieves details about the profile of the specified user.
 	/// 
+	/// Note: the aboutMe field may be an empty string
+	/// 
 	/// # Errors
 	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 

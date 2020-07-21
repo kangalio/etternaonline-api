@@ -1,6 +1,7 @@
 pub use crate::structs::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PackEntry {
 	pub name: String,
 	pub id: u32,

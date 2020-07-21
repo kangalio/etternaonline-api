@@ -5,12 +5,14 @@ use thiserror::Error;
 
 /// Chart difficulty enum
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Difficulty {
 	Beginner, Easy, Medium, Hard, Challenge, Edit
 }
 
 /// Number of judgements on a score
 #[derive(Debug, Eq, PartialEq, Clone, Default, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Judgements {
 	pub marvelouses: u32,
 	pub perfects: u32,
@@ -26,6 +28,7 @@ pub struct Judgements {
 
 /// Type of a note
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NoteType {
 	Tap,
 	HoldHead,
@@ -37,6 +40,7 @@ pub enum NoteType {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FileSize {
 	bytes: u64,
 }

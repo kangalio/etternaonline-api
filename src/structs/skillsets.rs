@@ -2,6 +2,7 @@ use std::convert::{TryFrom, TryInto};
 
 /// Skillset information. Used for player ratings, score specific ratings or difficulty
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Skillsets {
 	pub stream: f64,
 	pub jumpstream: f64,
@@ -29,6 +30,7 @@ impl Skillsets {
 
 /// Skillsets enum, excluding overall
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Skillset7 {
 	Stream,
 	Jumpstream,
@@ -57,6 +59,7 @@ impl Skillset7 {
 
 /// Skillsets enum, including overall
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Skillset8 {
 	Overall,
 	Stream,
