@@ -27,8 +27,20 @@ fn skillset_to_eo(skillset: Skillset7) -> &'static str {
 	}
 }
 
-fn skillsets_from_eo(json: &serde_json::Value) -> Skillsets {
-	Skillsets {
+fn chart_skillsets_from_eo(json: &serde_json::Value) -> ChartSkillsets {
+	ChartSkillsets {
+		stream: json["Stream"].as_f64().unwrap(),
+		jumpstream: json["Jumpstream"].as_f64().unwrap(),
+		handstream: json["Handstream"].as_f64().unwrap(),
+		stamina: json["Stamina"].as_f64().unwrap(),
+		jackspeed: json["JackSpeed"].as_f64().unwrap(),
+		chordjack: json["Chordjack"].as_f64().unwrap(),
+		technical: json["Technical"].as_f64().unwrap(),
+	}
+}
+
+fn user_skillsets_from_eo(json: &serde_json::Value) -> UserSkillsets {
+	UserSkillsets {
 		stream: json["Stream"].as_f64().unwrap(),
 		jumpstream: json["Jumpstream"].as_f64().unwrap(),
 		handstream: json["Handstream"].as_f64().unwrap(),
@@ -346,7 +358,7 @@ impl Session {
 				"" => None,
 				modifiers => Some(modifiers.to_owned()),
 			},
-			rating: skillsets_from_eo(&json["skillsets"]),
+			rating: user_skillsets_from_eo(&json["skillsets"]),
 		})
 	}
 	
@@ -366,7 +378,7 @@ impl Session {
 				rate: score_json["attributes"]["rate"].as_f64().unwrap(),
 				difficulty,
 				chartkey: score_json["attributes"]["chartKey"].as_str().unwrap().to_owned(),
-				base_msd: skillsets_from_eo(&score_json["attributes"]["skillsets"]),
+				base_msd: chart_skillsets_from_eo(&score_json["attributes"]["skillsets"]),
 			});
 		}
 
@@ -490,7 +502,7 @@ impl Session {
 					chartkey: score_json["chartkey"].as_str().unwrap().to_owned(),
 					scorekey: score_json["scorekey"].as_str().unwrap().to_owned(),
 					difficulty: difficulty_from_eo(score_json["difficulty"].as_str().unwrap())?,
-					ssr: skillsets_from_eo(&score_json),
+					ssr: chart_skillsets_from_eo(&score_json),
 				})
 			}
 
@@ -535,7 +547,7 @@ impl Session {
 			song_name: json["song"]["songName"].as_str().unwrap().to_owned(),
 			artist: json["song"]["artist"].as_str().unwrap().to_owned(),
 			song_id: json["song"]["id"].as_i64().unwrap() as u32,
-			ssr: skillsets_from_eo(&json["skillsets"]),
+			ssr: chart_skillsets_from_eo(&json["skillsets"]),
 			judgements: parse_judgements(&json["judgements"]),
 			replay: parse_replay(&json["replay"])?,
 			user: parse_score_data_user_2(&json["user"]),
@@ -571,7 +583,7 @@ impl Session {
 				has_chord_cohesion: !json["noCC"].as_bool().unwrap(),
 				rate: json["rate"].as_f64().unwrap(),
 				datetime: json["datetime"].as_str().unwrap().to_owned(),
-				ssr: skillsets_from_eo(&json["skillsets"]),
+				ssr: chart_skillsets_from_eo(&json["skillsets"]),
 				judgements: parse_judgements(&json["judgements"]),
 				has_replay: json["hasReplay"].as_bool().unwrap(), // API docs are wrong again
 				user: parse_score_data_user_1(&json["user"]),
@@ -603,7 +615,7 @@ impl Session {
 		for json in json.as_array().unwrap() {
 			entries.push(LeaderboardEntry {
 				user: parse_score_data_user_2(&json["attributes"]["user"]),
-				rating: skillsets_from_eo(&json["attributes"]["skillsets"]),
+				rating: user_skillsets_from_eo(&json["attributes"]["skillsets"]),
 			});
 		}
 

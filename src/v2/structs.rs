@@ -12,7 +12,7 @@ pub struct UserDetails {
 	pub country_code: String,
 	pub player_rating: f64,
 	pub default_modifiers: Option<String>,
-	pub rating: Skillsets,
+	pub rating: UserSkillsets,
 }
 
 /// Score from a top scores enumeration like [`Session::user_top_10_scores`](super::Session::user_top_10_scores)
@@ -26,7 +26,7 @@ pub struct TopScore {
 	pub rate: f64,
 	pub difficulty: Difficulty,
 	pub chartkey: String,
-	pub base_msd: Skillsets,
+	pub base_msd: ChartSkillsets,
 }
 
 /// Score from a latest scores enumeration like [`Session::user_latest_scores`](super::Session::user_latest_scores)
@@ -67,7 +67,7 @@ pub struct TopScorePerSkillset {
 	pub chartkey: String,
 	pub scorekey: String,
 	pub difficulty: Difficulty,
-	pub ssr: Skillsets,
+	pub ssr: ChartSkillsets,
 }
 
 /// User's best scores in each skillset category. See [`Session::user_top_scores_per_skillset`](super::Session::user_top_scores_per_skillset)
@@ -90,7 +90,7 @@ pub struct UserTopScoresPerSkillset {
 pub struct ScoreData {
 	pub scorekey: String,
 	pub modifiers: String,
-	pub ssr: Skillsets,
+	pub ssr: ChartSkillsets,
 	pub wifescore: f64,
 	pub rate: f64,
 	pub max_combo: u32,
@@ -142,7 +142,7 @@ pub struct ReplayNote {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartLeaderboardScore {
 	pub scorekey: String,
-	pub ssr: Skillsets,
+	pub ssr: ChartSkillsets,
 	pub wifescore: f64,
 	pub rate: f64,
 	pub max_combo: u32,
@@ -160,7 +160,7 @@ pub struct ChartLeaderboardScore {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LeaderboardEntry {
 	pub user: ScoreUser,
-	pub rating: Skillsets,
+	pub rating: UserSkillsets,
 }
 
 /// Score goal

@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 /// Skillset information. Used for player ratings, score specific ratings or difficulty
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Skillsets {
+pub struct ChartSkillsets {
 	pub stream: f64,
 	pub jumpstream: f64,
 	pub handstream: f64,
@@ -12,9 +12,36 @@ pub struct Skillsets {
 	pub chordjack: f64,
 	pub technical: f64,
 }
-crate::impl_get8!(Skillsets, f64, a, a.overall());
+crate::impl_get8!(ChartSkillsets, f64, a, a.overall());
 
-impl Skillsets {
+impl ChartSkillsets {
+	/// Return the overall skillset, as derived from the 7 individual skillsets
+	pub fn overall(&self) -> f64 {
+		self.stream
+			.max(self.jumpstream)
+			.max(self.handstream)
+			.max(self.stamina)
+			.max(self.jackspeed)
+			.max(self.chordjack)
+			.max(self.technical)
+	}
+}
+
+/// Skillset information. Used for player ratings, score specific ratings or difficulty
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct UserSkillsets {
+	pub stream: f64,
+	pub jumpstream: f64,
+	pub handstream: f64,
+	pub stamina: f64,
+	pub jackspeed: f64,
+	pub chordjack: f64,
+	pub technical: f64,
+}
+crate::impl_get8!(UserSkillsets, f64, a, a.overall());
+
+impl UserSkillsets {
 	/// Return the overall skillset, as derived from the 7 individual skillsets
 	pub fn overall(&self) -> f64 {
 		(self.stream
