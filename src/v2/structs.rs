@@ -130,7 +130,7 @@ pub struct ReplayNote {
 	/// The offset that the note was hit with, in seconds. A 50ms early hit would be `-0.05`
 	pub deviation: f64,
 	/// The position of the ntoe inside the chart, in ticks (192nds)
-	pub tick: u32,
+	pub tick: Option<u32>,
 	/// The lane/column that this note appears on. 0-3 for 4k, 0-5 for 6k
 	pub lane: u8,
 	/// Type of the note (tap, hold, mine etc.)

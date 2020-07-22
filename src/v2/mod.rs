@@ -96,7 +96,7 @@ fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
 			deviation: note_json[1].as_f64().unwrap() / 1000.0,
 			lane: note_json[2].as_i64().unwrap() as u8,
 			note_type: note_type_from_eo(&note_json[3])?,
-			tick: note_json[4].as_i64().unwrap() as u32,
+			tick: note_json.get(4).map(|x| x.as_i64().unwrap() as u32), // it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
 		});
 	}
 
