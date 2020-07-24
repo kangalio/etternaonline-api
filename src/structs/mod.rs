@@ -10,6 +10,34 @@ pub enum Difficulty {
 	Beginner, Easy, Medium, Hard, Challenge, Edit
 }
 
+impl Difficulty {
+	/// Parses a short difficulty string as found on the Etterna evaluation screen: BG, IN... The
+	/// string must be given in uppercase letters
+	pub fn from_short_string(string: &str) -> Option<Self> {
+		match string {
+			"BG" => Some(Self::Beginner),
+			"EZ" => Some(Self::Easy),
+			"NM" => Some(Self::Medium),
+			"HD" => Some(Self::Hard),
+			"IN" => Some(Self::Challenge),
+			"ED" => Some(Self::Edit),
+			_ => None,
+		}
+	}
+
+	/// Generate a short difficulty string as found on the Etterna evaluation screen.
+	pub fn to_short_string(self) -> &'static str {
+		match self {
+			Self::Beginner => "BG",
+			Self::Easy => "EZ",
+			Self::Medium => "NM",
+			Self::Hard => "HD",
+			Self::Challenge => "IN",
+			Self::Edit => "ED",
+		}
+	}
+}
+
 /// Number of judgements on a score
 #[derive(Debug, Eq, PartialEq, Clone, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
