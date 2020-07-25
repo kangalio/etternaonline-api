@@ -16,6 +16,7 @@ For detailed documentation usage, see [`v2::Session`] or [`web::Session`]
 mod extension_traits;
 #[macro_use] mod structs;
 pub use structs::*;
+pub mod v1;
 pub mod v2;
 pub mod web;
 

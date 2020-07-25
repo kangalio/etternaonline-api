@@ -36,6 +36,18 @@ impl Difficulty {
 			Self::Edit => "ED",
 		}
 	}
+
+	pub fn from_long_string(string: &str) -> Option<Self> {
+		match string {
+			"Beginner" | "Novice" => Some(Self::Beginner),
+			"Easy" => Some(Self::Easy),
+			"Medium" | "Normal" => Some(Self::Medium),
+			"Hard" => Some(Self::Hard),
+			"Challenge" | "Expert" | "Insane" => Some(Self::Challenge),
+			"Edit" => Some(Self::Edit),
+			_ => None,
+		}
+	}
 }
 
 /// Number of judgements on a score
