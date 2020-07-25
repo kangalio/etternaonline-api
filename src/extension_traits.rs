@@ -2,17 +2,33 @@ use crate::Error;
 
 pub(crate) trait ApiUnwrap<T> {
 	fn json_unwrap(self) -> Result<T, Error>;
+	fn idk(self, what_was_expected: &'static str, what_we_got: &serde_json::Value) -> Result<T, Error>;
 }
 
 impl<T> ApiUnwrap<T> for Option<T> {
 	fn json_unwrap(self) -> Result<T, Error> {
 		self.ok_or(Error::InvalidJsonStructure(None))
 	}
+
+	fn idk(self, what_was_expected: &'static str, what_we_got: &serde_json::Value) -> Result<T, Error> {
+		let mut what_we_got = what_we_got.to_string();
+		if what_we_got.len() > 100 {
+			what_we_got.truncate(100);
+			what_we_got += "...";
+		}
+
+		let msg = format!("Expected {}, found {}", what_was_expected, what_we_got);
+		self.ok_or_else(|| Error::InvalidJsonStructure(Some(msg)))
+	}
 }
 
 impl<T, E: std::error::Error + 'static + Send + Sync> ApiUnwrap<T> for Result<T, E> where E: 'static {
 	fn json_unwrap(self) -> Result<T, Error> {
 		self.map_err(|e| Error::InvalidJsonStructure(Some(e.to_string())))
+	}
+
+	fn idk(self, what_was_expected: &'static str, what_we_got: &serde_json::Value) -> Result<T, Error> {
+		self.ok().idk(what_was_expected, what_we_got)
 	}
 }
 
@@ -32,45 +48,50 @@ pub(crate) trait JsonValueExt: Sized {
 	fn get(&self) -> &serde_json::Value;
 
 	fn str_(&self) -> Result<&str, Error> {
-		Ok(self.get().as_str().json_unwrap()?)
+		self.get().as_str()
+			.idk("string", self.get())
 	}
 
 	fn string(&self) -> Result<String, Error> {
-		Ok(self.get().as_str().json_unwrap()?.to_owned())
+		Ok(self.str_()?.to_owned())
 	}
 
 	fn string_maybe(&self) -> Result<Option<String>, Error> {
-		Ok(if self.get().is_null() {
+		(|| Some(if self.get().is_null() {
 			None
 		} else {
-			Some(self.string()?)
-		})
+			Some(self.get().as_str()?.to_owned())
+		}))()
+			.idk("null or a string", self.get())
 	}
 
 	fn u32_string(&self) -> Result<u32, Error> {
-		Ok(self.get().str_()?.parse().json_unwrap()?)
+		(|| Some(self.get().as_str()?.parse::<u32>().ok()?))()
+			.idk("u32 in a string", self.get())
 	}
 
 	fn array(&self) -> Result<&Vec<serde_json::Value>, Error> {
-		Ok(self.get().as_array().json_unwrap()?)
+		self.get().as_array()
+			.idk("array", self.get())
 	}
 
 	fn bool_int_string(&self) -> Result<bool, Error> {
-		Ok(match self.get().str_()? {
-			"0" => false,
-			"1" => true,
-			other => return Err(Error::InvalidJsonStructure(
-				Some(format!("Expected '0' or '1', got {}", other))
-			)),
-		})
+		(|| match self.get().as_str()? {
+			"0" => Some(false),
+			"1" => Some(true),
+			_ => None,
+		})()
+			.idk("\"0\" or \"1\"", self.get())
 	}
 
 	fn f32_string(&self) -> Result<f32, Error> {
-		Ok(self.str_()?.parse().json_unwrap()?)
+		(|| Some(self.get().as_str()?.parse::<f32>().ok()?))()
+			.idk("f32 in a string", self.get())
 	}
 
 	fn u64_(&self) -> Result<u64, Error> {
-		Ok(self.get().as_u64().json_unwrap()?)
+		self.get().as_u64()
+			.idk("u64", self.get())
 	}
 
 	fn u32_(&self) -> Result<u32, Error> {
@@ -78,7 +99,8 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn f32_(&self) -> Result<f32, Error> {
-		Ok(self.get().as_f64().json_unwrap()? as f32)
+		(|| Some(self.get().as_f64()? as f32))()
+			.idk("f32", self.get())
 	}
 }
 

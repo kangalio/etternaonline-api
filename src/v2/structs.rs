@@ -1,4 +1,4 @@
-pub use crate::structs::*;
+pub use crate::common::structs::*;
 
 /// Details about a user. See [`Session::user_details`](super::Session::user_details)
 #[derive(Debug, PartialEq, Clone)]
@@ -10,7 +10,7 @@ pub struct UserDetails {
 	pub is_patreon: bool,
 	pub avatar_url: String,
 	pub country_code: String,
-	pub player_rating: f64,
+	pub player_rating: f32,
 	pub default_modifiers: Option<String>,
 	pub rating: UserSkillsets,
 }
@@ -21,9 +21,9 @@ pub struct UserDetails {
 pub struct TopScore {
 	pub scorekey: String,
 	pub song_name: String,
-	pub ssr_overall: f64,
-	pub wifescore: f64,
-	pub rate: f64,
+	pub ssr_overall: f32,
+	pub wifescore: f32,
+	pub rate: f32,
 	pub difficulty: Difficulty,
 	pub chartkey: String,
 	pub base_msd: ChartSkillsets,
@@ -35,9 +35,9 @@ pub struct TopScore {
 pub struct LatestScore {
 	pub scorekey: String,
 	pub song_name: String,
-	pub ssr_overall: f64,
-	pub wifescore: f64,
-	pub rate: f64,
+	pub ssr_overall: f32,
+	pub wifescore: f32,
+	pub rate: f32,
 	pub difficulty: Difficulty,
 
 }
@@ -62,8 +62,8 @@ crate::impl_get8!(UserRanksPerSkillset, u32, a, a.overall);
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TopScorePerSkillset {
 	pub song_name: String,
-	pub rate: f64,
-	pub wifescore: f64,
+	pub rate: f32,
+	pub wifescore: f32,
 	pub chartkey: String,
 	pub scorekey: String,
 	pub difficulty: Difficulty,
@@ -91,8 +91,8 @@ pub struct ScoreData {
 	pub scorekey: String,
 	pub modifiers: String,
 	pub ssr: ChartSkillsets,
-	pub wifescore: f64,
-	pub rate: f64,
+	pub wifescore: f32,
+	pub rate: f32,
 	pub max_combo: u32,
 	pub is_valid: bool,
 	pub has_chord_cohesion: bool,
@@ -111,7 +111,7 @@ pub struct ScoreUser {
 	pub username: String,
 	pub avatar: String,
 	pub country_code: String,
-	pub overall_rating: f64,
+	pub overall_rating: f32,
 }
 
 /// Score information in the context of a [chart leaderboard](super::Session::chart_leaderboard)
@@ -120,8 +120,8 @@ pub struct ScoreUser {
 pub struct ChartLeaderboardScore {
 	pub scorekey: String,
 	pub ssr: ChartSkillsets,
-	pub wifescore: f64,
-	pub rate: f64,
+	pub wifescore: f32,
+	pub rate: f32,
 	pub max_combo: u32,
 	pub is_valid: bool,
 	pub has_chord_cohesion: bool,
@@ -145,8 +145,8 @@ pub struct LeaderboardEntry {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreGoal {
 	pub chartkey: String,
-	pub rate: f64,
-	pub wifescore: f64,
+	pub rate: f32,
+	pub wifescore: f32,
 	pub time_assigned: String,
 	pub time_achieved: Option<String>,
 }

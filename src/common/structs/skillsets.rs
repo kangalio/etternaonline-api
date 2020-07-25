@@ -1,12 +1,12 @@
 use std::convert::{TryFrom, TryInto};
 
 mod calc_rating {
-	fn erfc(x: f64) -> f64 { libm::erfc(x) }
+	fn erfc(x: f32) -> f32 { libm::erfc(x as f64) as f32 }
 	
-	fn is_rating_okay(rating: f64, ssrs: &[f64], delta_multiplier: f64) -> bool {
-		let max_power_sum = 2f64.powf(rating / 10.0);
+	fn is_rating_okay(rating: f32, ssrs: &[f32], delta_multiplier: f32) -> bool {
+		let max_power_sum = 2f32.powf(rating / 10.0);
 		
-		let power_sum: f64 = ssrs.iter()
+		let power_sum: f32 = ssrs.iter()
 				.map(|&ssr| 2.0 / erfc(delta_multiplier * (ssr - rating)) - 2.0)
 				.filter(|&x| x > 0.0)
 				.sum();
@@ -30,14 +30,14 @@ mod calc_rating {
 	*/
 
 	fn calc_rating(
-		ssrs: &[f64],
+		ssrs: &[f32],
 		num_iters: u32,
 		add_res_x2: bool,
-		final_multiplier: f64,
-		delta_multiplier: f64, // no idea if this is a good name
-	) -> f64 {
-		let mut rating: f64 = 0.0;
-		let mut resolution: f64 = 10.24;
+		final_multiplier: f32,
+		delta_multiplier: f32, // no idea if this is a good name
+	) -> f32 {
+		let mut rating: f32 = 0.0;
+		let mut resolution: f32 = 10.24;
 		
 		// Repeatedly approximate the final rating, with better resolution
 		// each time
@@ -57,22 +57,22 @@ mod calc_rating {
 		rating * final_multiplier
 	}
 
-	// pub fn idk_this_was_previously(ssrs: &[f64]) -> f64 {
+	// pub fn idk_this_was_previously(ssrs: &[f32]) -> f32 {
 	// 	// not sure if these params are correct; I didn't test them because I don't wannt spend the
 	// 	// time and effort to find the old C++ implementation to compare
 	// 	calc_rating(ssrs, 10, false, 1.04, 0.1)
 	// }
 
-	pub fn calculate_chart_overall(skillsets: &[f64]) -> f64 {
+	pub fn calculate_chart_overall(skillsets: &[f32]) -> f32 {
 		calc_rating(skillsets, 11, true, 1.11, 0.25)
 	}
 
-	pub fn calculate_player_overall(skillsets: &[f64]) -> f64 {
+	pub fn calculate_player_overall(skillsets: &[f32]) -> f32 {
 		calc_rating(skillsets, 11, true, 1.0, 0.1)
 	}
 
 	// not needed rn
-	// pub fn calculate_player_skillset_rating(skillsets: &[f64]) -> f64 {
+	// pub fn calculate_player_skillset_rating(skillsets: &[f32]) -> f32 {
 	// 	calc_rating(skillsets, 11, true, 1.0, 0.1)
 	// }
 }
@@ -81,19 +81,19 @@ mod calc_rating {
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartSkillsets {
-	pub stream: f64,
-	pub jumpstream: f64,
-	pub handstream: f64,
-	pub stamina: f64,
-	pub jackspeed: f64,
-	pub chordjack: f64,
-	pub technical: f64,
+	pub stream: f32,
+	pub jumpstream: f32,
+	pub handstream: f32,
+	pub stamina: f32,
+	pub jackspeed: f32,
+	pub chordjack: f32,
+	pub technical: f32,
 }
-crate::impl_get8!(ChartSkillsets, f64, a, a.overall());
+crate::impl_get8!(ChartSkillsets, f32, a, a.overall());
 
 impl ChartSkillsets {
 	/// Return the overall skillset, as derived from the 7 individual skillsets
-	pub fn overall(&self) -> f64 {
+	pub fn overall(&self) -> f32 {
 		let aggregated_skillsets = calc_rating::calculate_chart_overall(&[
 			self.stream,
 			self.jumpstream,
@@ -119,19 +119,19 @@ impl ChartSkillsets {
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserSkillsets {
-	pub stream: f64,
-	pub jumpstream: f64,
-	pub handstream: f64,
-	pub stamina: f64,
-	pub jackspeed: f64,
-	pub chordjack: f64,
-	pub technical: f64,
+	pub stream: f32,
+	pub jumpstream: f32,
+	pub handstream: f32,
+	pub stamina: f32,
+	pub jackspeed: f32,
+	pub chordjack: f32,
+	pub technical: f32,
 }
-crate::impl_get8!(UserSkillsets, f64, a, a.overall());
+crate::impl_get8!(UserSkillsets, f32, a, a.overall());
 
 impl UserSkillsets {
 	/// Return the overall skillset, as derived from the 7 individual skillsets
-	pub fn overall(&self) -> f64 {
+	pub fn overall(&self) -> f32 {
 		calc_rating::calculate_player_overall(&[
 			self.stream,
 			self.jumpstream,

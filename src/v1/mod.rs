@@ -3,7 +3,6 @@ pub use structs::*;
 
 use crate::Error;
 use crate::extension_traits::*;
-use crate::structs::*;
 
 
 pub struct Session {
@@ -133,10 +132,10 @@ impl Session {
 			user: User {
 				username: json["username"].string()?,
 				avatar: json["avatar"].string()?,
-				country_code: json["countryCode"].string()?,
+				country_code: json["countrycode"].string()?,
 				rating: json["player_rating"].f32_string()?,
 			},
-			replay: crate::parse_replay(&json["replay"])?,
+			replay: crate::common::parse_replay(&json["replay"])?,
 		})).collect()
 	}
 }

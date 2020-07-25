@@ -2,6 +2,7 @@ mod structs;
 pub use structs::*;
 
 use crate::Error;
+use crate::extension_traits::*;
 
 fn difficulty_from_eo(string: &str) -> Result<Difficulty, Error> {
 	Ok(match string {
@@ -27,28 +28,28 @@ fn skillset_to_eo(skillset: Skillset7) -> &'static str {
 	}
 }
 
-fn chart_skillsets_from_eo(json: &serde_json::Value) -> ChartSkillsets {
-	ChartSkillsets {
-		stream: json["Stream"].as_f64().unwrap(),
-		jumpstream: json["Jumpstream"].as_f64().unwrap(),
-		handstream: json["Handstream"].as_f64().unwrap(),
-		stamina: json["Stamina"].as_f64().unwrap(),
-		jackspeed: json["JackSpeed"].as_f64().unwrap(),
-		chordjack: json["Chordjack"].as_f64().unwrap(),
-		technical: json["Technical"].as_f64().unwrap(),
-	}
+fn chart_skillsets_from_eo(json: &serde_json::Value) -> Result<ChartSkillsets, Error> {
+	Ok(ChartSkillsets {
+		stream: json["Stream"].f32_()?,
+		jumpstream: json["Jumpstream"].f32_()?,
+		handstream: json["Handstream"].f32_()?,
+		stamina: json["Stamina"].f32_()?,
+		jackspeed: json["JackSpeed"].f32_()?,
+		chordjack: json["Chordjack"].f32_()?,
+		technical: json["Technical"].f32_()?,
+	})
 }
 
-fn user_skillsets_from_eo(json: &serde_json::Value) -> UserSkillsets {
-	UserSkillsets {
-		stream: json["Stream"].as_f64().unwrap(),
-		jumpstream: json["Jumpstream"].as_f64().unwrap(),
-		handstream: json["Handstream"].as_f64().unwrap(),
-		stamina: json["Stamina"].as_f64().unwrap(),
-		jackspeed: json["JackSpeed"].as_f64().unwrap(),
-		chordjack: json["Chordjack"].as_f64().unwrap(),
-		technical: json["Technical"].as_f64().unwrap(),
-	}
+fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<UserSkillsets, Error> {
+	Ok(UserSkillsets {
+		stream: json["Stream"].f32_()?,
+		jumpstream: json["Jumpstream"].f32_()?,
+		handstream: json["Handstream"].f32_()?,
+		stamina: json["Stamina"].f32_()?,
+		jackspeed: json["JackSpeed"].f32_()?,
+		chordjack: json["Chordjack"].f32_()?,
+		technical: json["Technical"].f32_()?,
+	})
 }
 
 fn parse_judgements(json: &serde_json::Value) -> Judgements {
@@ -66,22 +67,22 @@ fn parse_judgements(json: &serde_json::Value) -> Judgements {
 	}
 }
 
-fn parse_score_data_user_1(json: &serde_json::Value) -> ScoreUser {
-	ScoreUser {
+fn parse_score_data_user_1(json: &serde_json::Value) -> Result<ScoreUser, Error> {
+	Ok(ScoreUser {
 		username: json["userName"].as_str().unwrap().to_owned(),
 		avatar: json["avatar"].as_str().unwrap().to_owned(),
 		country_code: json["countryCode"].as_str().unwrap().to_owned(),
-		overall_rating: json["playerRating"].as_f64().unwrap(),
-	}
+		overall_rating: json["playerRating"].f32_()?,
+	})
 }
 
-fn parse_score_data_user_2(json: &serde_json::Value) -> ScoreUser {
-	ScoreUser {
+fn parse_score_data_user_2(json: &serde_json::Value) -> Result<ScoreUser, Error> {
+	Ok(ScoreUser {
 		username: json["username"].as_str().unwrap().to_owned(),
 		avatar: json["avatar"].as_str().unwrap().to_owned(),
 		country_code: json["countryCode"].as_str().unwrap().to_owned(),
-		overall_rating: json["Overall"].as_f64().unwrap(),
-	}
+		overall_rating: json["Overall"].f32_()?,
+	})
 }
 
 /// EtternaOnline API session client, handles all requests to and from EtternaOnline.
@@ -316,12 +317,12 @@ impl Session {
 			is_patreon: json["patreon"].as_bool().unwrap(),
 			avatar_url: json["avatar"].as_str().unwrap().to_owned(),
 			country_code: json["countryCode"].as_str().unwrap().to_owned(),
-			player_rating: json["playerRating"].as_f64().unwrap(),
+			player_rating: json["playerRating"].f32_()?,
 			default_modifiers: match json["defaultModifiers"].as_str().unwrap() {
 				"" => None,
 				modifiers => Some(modifiers.to_owned()),
 			},
-			rating: user_skillsets_from_eo(&json["skillsets"]),
+			rating: user_skillsets_from_eo(&json["skillsets"])?,
 		})
 	}
 	
@@ -336,12 +337,12 @@ impl Session {
 			scores.push(TopScore {
 				scorekey: score_json["id"].as_str().unwrap().to_owned(),
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
-				ssr_overall: score_json["attributes"]["Overall"].as_f64().unwrap(),
-				wifescore: score_json["attributes"]["wife"].as_f64().unwrap() / 100.0,
-				rate: score_json["attributes"]["rate"].as_f64().unwrap(),
+				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
+				wifescore: score_json["attributes"]["wife"].f32_()? / 100.0,
+				rate: score_json["attributes"]["rate"].f32_()?,
 				difficulty,
 				chartkey: score_json["attributes"]["chartKey"].as_str().unwrap().to_owned(),
-				base_msd: chart_skillsets_from_eo(&score_json["attributes"]["skillsets"]),
+				base_msd: chart_skillsets_from_eo(&score_json["attributes"]["skillsets"])?,
 			});
 		}
 
@@ -403,9 +404,9 @@ impl Session {
 			scores.push(LatestScore {
 				scorekey: score_json["id"].as_str().unwrap().to_owned(),
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
-				ssr_overall: score_json["attributes"]["Overall"].as_f64().unwrap(),
-				wifescore: score_json["attributes"]["wife"].as_f64().unwrap() / 100.0,
-				rate: score_json["attributes"]["rate"].as_f64().unwrap(),
+				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
+				wifescore: score_json["attributes"]["wife"].f32_()? / 100.0,
+				rate: score_json["attributes"]["rate"].f32_()?,
 				difficulty: difficulty_from_eo(score_json["attributes"]["difficulty"].as_str().unwrap())?,
 			});
 		}
@@ -460,12 +461,12 @@ impl Session {
 			for score_json in array.as_array().unwrap() {
 				scores.push(TopScorePerSkillset {
 					song_name: score_json["songname"].as_str().unwrap().to_owned(),
-					rate: score_json["user_chart_rate_rate"].as_f64().unwrap(),
-					wifescore: score_json["wifescore"].as_f64().unwrap(),
+					rate: score_json["user_chart_rate_rate"].f32_()?,
+					wifescore: score_json["wifescore"].f32_()?,
 					chartkey: score_json["chartkey"].as_str().unwrap().to_owned(),
 					scorekey: score_json["scorekey"].as_str().unwrap().to_owned(),
 					difficulty: difficulty_from_eo(score_json["difficulty"].as_str().unwrap())?,
-					ssr: chart_skillsets_from_eo(&score_json),
+					ssr: chart_skillsets_from_eo(&score_json)?,
 				})
 			}
 
@@ -502,18 +503,18 @@ impl Session {
 		Ok(ScoreData {
 			scorekey,
 			modifiers: json["modifiers"].as_str().unwrap().to_owned(),
-			wifescore: json["wife"].as_f64().unwrap(),
-			rate: json["rate"].as_f64().unwrap(),
+			wifescore: json["wife"].f32_()?,
+			rate: json["rate"].f32_()?,
 			max_combo: json["maxCombo"].as_i64().unwrap() as u32,
 			is_valid: json["valid"].as_bool().unwrap(),
 			has_chord_cohesion: !json["nocc"].as_bool().unwrap(),
 			song_name: json["song"]["songName"].as_str().unwrap().to_owned(),
 			artist: json["song"]["artist"].as_str().unwrap().to_owned(),
 			song_id: json["song"]["id"].as_i64().unwrap() as u32,
-			ssr: chart_skillsets_from_eo(&json["skillsets"]),
+			ssr: chart_skillsets_from_eo(&json["skillsets"])?,
 			judgements: parse_judgements(&json["judgements"]),
-			replay: crate::parse_replay(&json["replay"])?,
-			user: parse_score_data_user_2(&json["user"]),
+			replay: crate::common::parse_replay(&json["replay"])?,
+			user: parse_score_data_user_2(&json["user"])?,
 		})
 	}
 
@@ -539,17 +540,17 @@ impl Session {
 
 			scores.push(ChartLeaderboardScore {
 				scorekey,
-				wifescore: json["wife"].as_f64().unwrap() / 100.0,
+				wifescore: json["wife"].f32_()? / 100.0,
 				max_combo: json["maxCombo"].as_i64().unwrap() as u32,
 				is_valid: json["valid"].as_bool().unwrap(),
 				modifiers: json["modifiers"].as_str().unwrap().to_owned(),
 				has_chord_cohesion: !json["noCC"].as_bool().unwrap(),
-				rate: json["rate"].as_f64().unwrap(),
+				rate: json["rate"].f32_()?,
 				datetime: json["datetime"].as_str().unwrap().to_owned(),
-				ssr: chart_skillsets_from_eo(&json["skillsets"]),
+				ssr: chart_skillsets_from_eo(&json["skillsets"])?,
 				judgements: parse_judgements(&json["judgements"]),
 				has_replay: json["hasReplay"].as_bool().unwrap(), // API docs are wrong again
-				user: parse_score_data_user_1(&json["user"]),
+				user: parse_score_data_user_1(&json["user"])?,
 			});
 		}
 
@@ -577,8 +578,8 @@ impl Session {
 		let mut entries = Vec::new();
 		for json in json.as_array().unwrap() {
 			entries.push(LeaderboardEntry {
-				user: parse_score_data_user_2(&json["attributes"]["user"]),
-				rating: user_skillsets_from_eo(&json["attributes"]["skillsets"]),
+				user: parse_score_data_user_2(&json["attributes"]["user"])?,
+				rating: user_skillsets_from_eo(&json["attributes"]["skillsets"])?,
 			});
 		}
 
@@ -674,21 +675,17 @@ impl Session {
 	pub fn user_goals(&mut self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
 		let json = self.get(&format!("user/{}/goals", username))?;
 
-		let score_goals: Vec<ScoreGoal> = json.as_array().unwrap().iter()
-			.map(|json| ScoreGoal {
+		json.as_array().unwrap().iter().map(|json| Ok(ScoreGoal {
 				chartkey: json["attributes"]["chartkey"].as_str().unwrap().to_owned(),
-				rate: json["attributes"]["rate"].as_f64().unwrap(),
-				wifescore: json["attributes"]["wife"].as_f64().unwrap(),
+				rate: json["attributes"]["rate"].f32_()?,
+				wifescore: json["attributes"]["wife"].f32_()?,
 				time_assigned: json["attributes"]["timeAssigned"].as_str().unwrap().to_owned(),
 				time_achieved: if json["attributes"]["achieved"].as_i64().unwrap() == 0 {
 					None
 				} else {
 					Some(json["attributes"]["timeAchieved"].as_str().unwrap().to_owned())
 				}
-			})
-			.collect();
-
-		Ok(score_goals)
+		})).collect()
 	}
 
 	/// Add a new score goal.

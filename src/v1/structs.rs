@@ -1,4 +1,4 @@
-use crate::structs::*;
+pub use crate::common::structs::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SongData {
@@ -46,23 +46,23 @@ pub struct PackEntry {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ChartLeaderboardEntry {
-	ssr: ChartSkillsets,
-	wifescore: f32,
-	max_combo: u32,
-	is_valid: bool,
-	modifiers: String,
-	judgements: Judgements,
-	datetime: String,
-	has_chord_cohesion: bool,
-	rate: f32,
-	user: User,
-	replay: Option<Replay>,
+	pub ssr: ChartSkillsets,
+	pub wifescore: f32,
+	pub max_combo: u32,
+	pub is_valid: bool,
+	pub modifiers: String,
+	pub judgements: Judgements,
+	pub datetime: String,
+	pub has_chord_cohesion: bool,
+	pub rate: f32,
+	pub user: User,
+	pub replay: Option<Replay>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct User {
-	username: String,
-	avatar: String,
-	country_code: String,
-	rating: f32,
+	pub username: String,
+	pub avatar: String,
+	pub country_code: String,
+	pub rating: f32,
 }
