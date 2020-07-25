@@ -48,17 +48,29 @@ impl Session {
 		let response = request.call();
 
 		let json = response.into_json().map_err(|e| Error::InvalidJson(e.to_string()))?;
+
+		if let Some(error) = json["error"].as_str() {
+			return Err(match error {
+				"Chart not tracked" => Error::ChartNotTracked,
+				"Sepcify a username" => Error::UserNotFound, // lol "sepcify"
+				"User not found" => Error::UserNotFound,
+				"Could not find scores for that user" => Error::UserNotFound,
+				"No users for specified country" => Error::NoUsersFound,
+				"Score not found" => Error::ScoreNotFound,
+				other => Error::UnknownApiError(other.to_owned()),
+			})
+		}
+
 		Ok(json)
 	}
 
 	pub fn song_data(&mut self, song_id: u32) -> Result<SongData, Error> {
 		let json = self.request("song", &[("key", song_id.to_string().as_str())])?;
-		let json = match &json.array()?.as_slice() {
-			&[x] => x,
-			other => return Err(Error::InvalidJsonStructure(
-				Some(format!("Expected one array element, found {}", other.len()))
-			)),
-		};
+		let json = json.singular_array_item()?;
+
+		if json["songkey"].is_null() {
+			return Err(Error::SongNotFound);
+		}
 
 		Ok(SongData {
 			songkey: json["songkey"].string()?,
@@ -193,7 +205,7 @@ impl Session {
 	pub fn user_rank(&mut self, username: &str) -> Result<UserRank, Error> {
 		let json = self.request("user_rank", &[("username", username)])?;
 
-		Ok(UserRank {
+		let user_rank = UserRank {
 			overall: json["Overall"].u32_string()?,
 			stream: json["Stream"].u32_string()?,
 			jumpstream: json["Jumpstream"].u32_string()?,
@@ -202,9 +214,18 @@ impl Session {
 			jackspeed: json["JackSpeed"].u32_string()?,
 			chordjack: json["Chordjack"].u32_string()?,
 			technical: json["Technical"].u32_string()?,
-		})
+		};
+
+		let user_rank_when_user_not_found = UserRank { overall: 1, stream: 1, jumpstream: 1,
+			handstream: 1, stamina: 1, jackspeed: 1, chordjack: 1, technical: 1 };
+		if user_rank == user_rank_when_user_not_found {
+			return Err(Error::UserNotFound);
+		}
+
+		Ok(user_rank)
 	}
 
+	/// If number exceeds number of scores, or if number is zero, return all scores
 	pub fn user_top_scores(&mut self,
 		username: &str,
 		skillset: Skillset8,

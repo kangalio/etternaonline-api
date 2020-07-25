@@ -31,6 +31,8 @@ pub enum Error {
 	InvalidLogin,
 	#[error("Score not found")]
 	ScoreNotFound,
+	#[error("Song not found")]
+	SongNotFound,
 	#[error("Chart not tracked")]
 	ChartNotTracked,
 	#[error("Favorite already exists")]

@@ -18,7 +18,9 @@ impl<T> ApiUnwrap<T> for Option<T> {
 		}
 
 		let msg = format!("Expected {}, found {}", what_was_expected, what_we_got);
-		self.ok_or_else(|| Error::InvalidJsonStructure(Some(msg)))
+		self.ok_or_else(|| {
+			Error::InvalidJsonStructure(Some(msg))
+		})
 	}
 }
 
