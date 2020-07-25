@@ -125,7 +125,7 @@ impl Session {
 					username: json["username"].string()?,
 					wifescore: json["wifescore"].f32_string()?,
 					ssr_overall: json["Overall"].f32_string()?,
-					rate: json["user_chart_rate_rate"].f32_string()?,
+					rate: json["user_chart_rate_rate"].rate_string()?,
 					datetime: json["datetime"].string()?,
 				})).collect::<Result<Vec<SongChartLeaderboardEntry>, Error>>()?,
 			})).collect::<Result<Vec<SongChartData>, Error>>()?,
@@ -222,7 +222,7 @@ impl Session {
 			},
 			datetime: json["datetime"].string()?,
 			has_chord_cohesion: !json["nocc"].bool_int_string()?,
-			rate: json["user_chart_rate_rate"].f32_string()?,
+			rate: json["user_chart_rate_rate"].rate_string()?,
 			user: User {
 				username: json["username"].string()?,
 				avatar: json["avatar"].string()?,
@@ -248,7 +248,7 @@ impl Session {
 
 		json.array()?.iter().map(|json| Ok(LatestScore {
 			song_name: json["songname"].string()?,
-			rate: json["user_chart_rate_rate"].f32_string()?,
+			rate: json["user_chart_rate_rate"].rate_string()?,
 			ssr_overall: json["Overall"].f32_string()?,
 			wifescore: json["wifescore"].f32_string()?,
 		})).collect()
@@ -359,7 +359,7 @@ impl Session {
 		
 		json.array()?.iter().map(|json| Ok(TopScore {
 			song_name: json["songname"].string()?, // "Everytime I hear Your Name"
-			rate: json["user_chart_rate_rate"].f32_string()?, // "1.40"
+			rate: json["user_chart_rate_rate"].rate_string()?, // "1.40"
 			ssr_overall: json["Overall"].f32_string()?, // "30.78"
 			wifescore: json["wifescore"].f32_string()?, // "0.96986"
 			chartkey: json["chartkey"].string()?, // "X4b537c03eb1f72168f51a0ab92f8a58a62fbe4b4"
@@ -461,7 +461,7 @@ impl Session {
 			},
 			datetime: json["datetime"].string()?,
 			has_chord_cohesion: !json["nocc"].bool_int_string()?,
-			rate: json["user_chart_rate_rate"].f32_string()?,
+			rate: json["user_chart_rate_rate"].rate_string()?,
 			user: User {
 				username: json["username"].string()?,
 				avatar: json["avatar"].string()?,

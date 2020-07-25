@@ -175,3 +175,57 @@ pub struct UserRank {
 	pub technical: u32,
 }
 crate::impl_get8!(UserRank, u32, a, a.overall);
+
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct Rate {
+	// this value is 20x the real rate, e.g. `1.15x` would be 23
+	x20: u32,
+}
+
+impl Rate {
+	/// Rounds to the nearest valid rate.
+	/// 
+	/// Returns None if the given value is negative or too large
+	pub fn from_f32(r: f32) -> Option<Self> {
+		// Some(Self { x20: (r * 20.0).round().try_into().ok()? })
+		if r < 0.0 || r > u32::MAX as f32 {
+			None
+		} else {
+			Some(Self { x20: (r * 20.0).round() as u32 })
+		}
+	}
+
+	/// Parses a string into a rate. The string needs to be in the format `\d+\.\d+[05]?`
+	/// 
+	/// Returns None if parsing failed
+	pub fn from_string(string: &str) -> Option<Self> {
+		// not the most efficient but /shrug
+		Self::from_f32(string.parse().ok()?)
+	}
+
+	/// Create a new rate from a value that is equal to the real rate multiplied by 20.
+	/// 
+	/// Due to the fact that Etterna ratings are always multiples of 0.05, every rate can be
+	/// precicely represented precisely with a whole number when multiplied by 20.
+	pub fn from_x20(x20: u32) -> Self {
+		Self { x20 }
+	}
+}
+
+impl std::fmt::Display for Rate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}x", self.x20 as f32 / 20.0)
+    }
+}
+
+impl std::fmt::Debug for Rate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}x", self.x20 as f32 / 20.0)
+    }
+}
+
+impl Default for Rate {
+    fn default() -> Self {
+        Self::from_x20(20)
+    }
+}

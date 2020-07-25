@@ -32,7 +32,7 @@ pub struct SongChartLeaderboardEntry {
 	pub username: String,
 	pub wifescore: f32,
 	pub ssr_overall: f32,
-	pub rate: f32,
+	pub rate: Rate,
 	pub datetime: String,
 }
 
@@ -59,7 +59,7 @@ pub struct ChartLeaderboardEntry {
 	pub judgements: Judgements,
 	pub datetime: String,
 	pub has_chord_cohesion: bool,
-	pub rate: f32,
+	pub rate: Rate,
 	pub user: User,
 	pub replay: Option<Replay>,
 }
@@ -77,7 +77,7 @@ pub struct User {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LatestScore {
 	pub song_name: String,
-	pub rate: f32,
+	pub rate: Rate,
 	pub ssr_overall: f32,
 	pub wifescore: f32,
 }
@@ -99,7 +99,7 @@ pub struct UserData {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TopScore {
 	pub song_name: String,
-	pub rate: f32,
+	pub rate: Rate,
 	pub ssr_overall: f32,
 	pub wifescore: f32,
 	pub chartkey: String,
@@ -127,7 +127,7 @@ pub struct ScoreData {
 	pub judgements: Judgements,
 	pub datetime: String,
 	pub has_chord_cohesion: bool,
-	pub rate: f32,
+	pub rate: Rate,
 	pub user: User,
 	pub replay: Option<Replay>,
 	pub song: Song,

@@ -23,7 +23,7 @@ pub struct TopScore {
 	pub song_name: String,
 	pub ssr_overall: f32,
 	pub wifescore: f32,
-	pub rate: f32,
+	pub rate: Rate,
 	pub difficulty: Difficulty,
 	pub chartkey: String,
 	pub base_msd: ChartSkillsets,
@@ -37,7 +37,7 @@ pub struct LatestScore {
 	pub song_name: String,
 	pub ssr_overall: f32,
 	pub wifescore: f32,
-	pub rate: f32,
+	pub rate: Rate,
 	pub difficulty: Difficulty,
 
 }
@@ -47,7 +47,7 @@ pub struct LatestScore {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TopScorePerSkillset {
 	pub song_name: String,
-	pub rate: f32,
+	pub rate: Rate,
 	pub wifescore: f32,
 	pub chartkey: String,
 	pub scorekey: String,
@@ -77,7 +77,7 @@ pub struct ScoreData {
 	pub modifiers: String,
 	pub ssr: ChartSkillsets,
 	pub wifescore: f32,
-	pub rate: f32,
+	pub rate: Rate,
 	pub max_combo: u32,
 	pub is_valid: bool,
 	pub has_chord_cohesion: bool,
@@ -106,7 +106,7 @@ pub struct ChartLeaderboardScore {
 	pub scorekey: String,
 	pub ssr: ChartSkillsets,
 	pub wifescore: f32,
-	pub rate: f32,
+	pub rate: Rate,
 	pub max_combo: u32,
 	pub is_valid: bool,
 	pub has_chord_cohesion: bool,
@@ -130,7 +130,7 @@ pub struct LeaderboardEntry {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreGoal {
 	pub chartkey: String,
-	pub rate: f32,
+	pub rate: Rate,
 	pub wifescore: f32,
 	pub time_assigned: String,
 	pub time_achieved: Option<String>,

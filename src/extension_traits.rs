@@ -120,6 +120,16 @@ pub(crate) trait JsonValueExt: Sized {
 		})()
 			.idk("array with a single item", self.get())
 	}
+
+	fn rate_string(&self) -> Result<crate::Rate, Error> {
+		(|| Some(crate::Rate::from_string(self.get().as_str()?)?))()
+			.idk("rate string", self.get())
+	}
+
+	fn rate_float(&self) -> Result<crate::Rate, Error> {
+		(|| Some(crate::Rate::from_f32(self.get().as_f64()? as f32)?))()
+			.idk("rate float", self.get())
+	}
 }
 
 impl JsonValueExt for serde_json::Value {
