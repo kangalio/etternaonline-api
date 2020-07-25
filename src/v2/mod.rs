@@ -83,22 +83,14 @@ fn parse_score_data_user_2(json: &serde_json::Value) -> Result<ScoreUser, Error>
 /// 
 /// Initialize a session using [`Session::new_from_login`]
 /// 
-/// # Notes
-/// Etterna terminology:
-/// - The calculated difficulty for a chart is called MSD: Mina standardized difficulty.
-/// - The score rating - which is variable depending on your wifescore - is called SSR:
-///   score-specific-rating
-/// 
-/// The wifescores in this library are scaled to a maximum of `1.0`. This is means that a wifescore
-/// of 100% corresponds to a value of `1.0` (as opposed to `100.0`).
-/// 
 /// # Example
 /// ```rust
 /// let mut session = Session::new_from_login(
-/// 	"kangalioo",
+/// 	"<USERNAME>",
 /// 	"<PASSWORD>",
 /// 	"<CLIENT_DATA>",
 /// 	std::time::Duration::from_millis(2000), // Wait 2s inbetween requests
+/// 	None, // No request timeout
 /// );
 /// 
 /// println!("Details about kangalioo: {:?}", session.user_details("kangalioo")?);

@@ -1,13 +1,22 @@
 #![allow(clippy::tabs_in_doc_comments)]
 
 /*!
-This crate provides an ergonomic wrapper around the v2 API of
-[EtternaOnline](https://etternaonline.com), commonly abbreviated "EO". The EO API requires a valid
-username and password combination to expose its functions. You will also need an API token called
-"client data".
+This crate provides an ergonomic wrapper around the v1 and v2 API of
+[EtternaOnline](https://etternaonline.com), commonly abbreviated "EO" (web API is work-in-progress).
+
+Depending on which API you choose, you might need an API token.
+
+# Notes
+Etterna terminology:
+- The calculated difficulty for a chart is called MSD: Mina standardized difficulty.
+- The score rating - which is variable depending on your wifescore - is called SSR:
+  score-specific-rating
+
+The wifescores in this library are scaled to a maximum of `1.0`. This is means that a wifescore
+of 100% corresponds to a value of `1.0` (as opposed to `100.0`).
 
 # Usage
-For detailed documentation usage, see [`v2::Session`] or [`web::Session`]
+For detailed usage documentation, see [`v1::Session`] and [`v2::Session`]
 */
 
 // THIS IS MY TODO LIST:

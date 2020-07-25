@@ -17,6 +17,29 @@ fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<UserSkillsets, Err
 	})
 }
 
+/// EtternaOnline API session client, handles all requests to and from EtternaOnline.
+/// 
+/// This handler has rate-limiting built-in. Please do make use of it - the EO server is brittle and
+/// funded entirely by donations.
+/// 
+/// Initialize a session using [`Session::new`]
+/// 
+/// # Example
+/// ```rust
+/// let mut session = Session::new(
+/// 	"<API KEY HERE>"
+/// 	std::time::Duration::from_millis(2000), // Wait 2s inbetween requests
+/// 	None, // No request timeout
+/// );
+/// 
+/// println!("Details about kangalioo: {:?}", session.user_data("kangalioo")?);
+/// 
+/// let best_score = session.user_top_scores("kangalioo", Skillset8::Overall, 1)?[0];
+/// println!(
+/// 	"kangalioo's best score has {} misses",
+/// 	session.score_data(best_score)?.judgements.misses
+/// );
+/// ```
 pub struct Session {
 	api_key: String,
 	cooldown: std::time::Duration,
@@ -64,6 +87,17 @@ impl Session {
 		Ok(json)
 	}
 
+	/// Retrieves detailed metadata about the score with the given id.
+	/// 
+	/// # Errors
+	/// - [`Error::ScoreNotFound`] if the given song id doesn't exist
+	/// 
+	/// # Example
+	/// ```rust
+	/// let song = session.song_data(2858)?;
+	/// 
+	/// assert_eq!(song.name, "Game Time");
+	/// ```
 	pub fn song_data(&mut self, song_id: u32) -> Result<SongData, Error> {
 		let json = self.request("song", &[("key", song_id.to_string().as_str())])?;
 		let json = json.singular_array_item()?;
@@ -101,15 +135,39 @@ impl Session {
 		})
 	}
 
+	/// Retrieves an Etterna version string. I don't know what this specific version string stands
+	/// for. Maybe the minimum version that the site was tested with? I don't know
+	/// 
+	/// # Example
+	/// ```rust
+	/// let client_version = session.client_version()?;
+	/// assert_eq!(client_version, "0.70.1"); // As of 2020-07-25
+	/// ```
 	pub fn client_version(&mut self) -> Result<String, Error> {
 		Ok(self.request("clientVersion", &[])?["version"].string()?)
 	}
 
 	/// Retrieve the link where you can register for an EO account
+	/// 
+	/// # Example
+	/// ```rust
+	/// let register_link = session.register_link()?;
+	/// assert_eq!(register_link, "https://etternaonline.com/user/register/"); // As of 2020-07-25
+	/// ```
 	pub fn register_link(&mut self) -> Result<String, Error> {
 		Ok(self.request("registerLink", &[])?["link"].string()?)
 	}
 
+	/// Retrieves a list of all packs tracked on EO
+	/// 
+	/// # Example
+	/// ```rust
+	/// let pack_list = session.pack_list()?;
+	/// 
+	/// // As of 2020-07-25
+	/// assert_eq!(pack_list[0].name, "'c**t");
+	/// assert_eq!(pack_list[1].name, "'d");
+	/// ```
 	pub fn pack_list(&mut self) -> Result<Vec<PackEntry>, Error> {
 		let json = self.request("pack_list", &[])?;
 		json.array()?.iter().map(|json| Ok(PackEntry {
@@ -123,6 +181,17 @@ impl Session {
 		})).collect()
 	}
 
+	/// Retrieves the leaderboard for a chart, which includes the replay data for each leaderboard
+	/// entry
+	/// 
+	/// # Errors
+	/// - [`Error::ChartNotTracked`] if the given chartkey is not tracked on EO
+	/// 
+	/// # Example
+	/// ```rust
+	/// let leaderboard = session.chart_leaderboard("Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d3")?;
+	/// assert_eq!(leaderboard[0].user.username, "kangalioo"); // As of 2020-07-25
+	/// ```
 	pub fn chart_leaderboard(&mut self, chartkey: &str) -> Result<Vec<ChartLeaderboardEntry>, Error> {
 		let json = self.request("chartLeaderboard", &[("chartkey", chartkey)])?;
 		json.array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
@@ -164,6 +233,16 @@ impl Session {
 		})).collect()
 	}
 
+	/// Retrieves the user's ten latest scores
+	/// 
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the specified user does not exist
+	/// 
+	/// # Example
+	/// ```rust
+	/// let latest_scores = session.user_latest_10_scores("kangalioo")?;
+	/// println!("Last played song was {}", latest_scores[0].song_name);
+	/// ```
 	pub fn user_latest_10_scores(&mut self, username: &str) -> Result<Vec<LatestScore>, Error> {
 		let json = self.request("last_user_session", &[("username", username)])?;
 
@@ -175,6 +254,18 @@ impl Session {
 		})).collect()
 	}
 
+	/// Retrieves detailed data about the user
+	/// 
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the specified user does not exist
+	/// 
+	/// # Example
+	/// ```rust
+	/// let me = session.user_data("kangalioo")?;
+	/// 
+	/// assert_eq!(&me.country_code, "DE");
+	/// assert_eq!(&me.is_moderator, false);
+	/// ```
 	pub fn user_data(&mut self, username: &str) -> Result<UserData, Error> {
 		let json = self.request("user_data", &[("username", username)])?;
 
@@ -202,7 +293,19 @@ impl Session {
 		})
 	}
 
-	pub fn user_rank(&mut self, username: &str) -> Result<UserRank, Error> {
+	/// Retrieves the user's rank for each skillset, including overall
+	/// 
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the specified user does not exist
+	/// 
+	/// # Example
+	/// ```rust
+	/// let ranks = session.user_ranks("kangalioo");
+	/// 
+	/// // As of 2020-07-25 (who knows)
+	/// assert!(ranks.handstream < ranks.jackspeed);
+	/// ```
+	pub fn user_ranks(&mut self, username: &str) -> Result<UserRank, Error> {
 		let json = self.request("user_rank", &[("username", username)])?;
 
 		let user_rank = UserRank {
@@ -225,7 +328,24 @@ impl Session {
 		Ok(user_rank)
 	}
 
-	/// If number exceeds number of scores, or if number is zero, return all scores
+	/// Retrieve the user's top scores, either overall or in a specific skillset
+	/// 
+	/// If the number of requested results exceeds the total number of scores, or if number is zero,
+	/// all scores are returned
+	/// 
+	/// # Errors
+	/// - [`Error::UserNotFound`] if the specified user does not exist
+	/// 
+	/// # Example
+	/// ```rust
+	/// let top_jumpstream_scores = session.user_top_scores(
+	/// 	"kangalioo",
+	/// 	Skillset8::Jumpstream,
+	/// 	5,
+	/// )?;
+	/// 
+	/// assert_eq!(&top_jumpstream_scores[0].song_name, "Everytime I hear Your Name");
+	/// ```
 	pub fn user_top_scores(&mut self,
 		username: &str,
 		skillset: Skillset8,
@@ -248,17 +368,9 @@ impl Session {
 		})).collect()
 	}
 
-	pub fn leaderboard(&mut self,
-		country_code: Option<&str>
+	fn generic_leaderboard(&mut self,
+		params: &[(&str, &str)]
 	) -> Result<Vec<CountryLeaderboardEntry>, Error> {
-		let temp;
-		let params: &[_] = match country_code {
-			Some(country_code) => {
-				temp = [("cc", country_code)];
-				&temp
-			},
-			None => &[],
-		};
 		let json = self.request("leaderboard", params)?;
 
 		json.array()?.iter().map(|json| Ok(CountryLeaderboardEntry {
@@ -269,6 +381,54 @@ impl Session {
 		})).collect()
 	}
 
+	/// Retrieves the player leaderboard for the given country.
+	/// 
+	/// # Errors
+	/// - [`Error::NoUsersFound`] if there are no users registered in this country
+	/// 
+	/// # Example
+	/// ```rust
+	/// let leaderboard = session.country_leaderboard("DE")?
+	/// 
+	/// println!(
+	/// 	"The best German Etterna player is {} with a rating of {}",
+	/// 	leaderboard[0].user.username,
+	/// 	leaderboard[0].rating.overall(),
+	/// );
+	/// ```
+	pub fn country_leaderboard(&mut self,
+		country_code: &str,
+	) -> Result<Vec<CountryLeaderboardEntry>, Error> {
+		self.generic_leaderboard(&[("cc", country_code)])
+	}
+
+	/// Retrieves the worldwide leaderboard of players.
+	/// 
+	/// # Example
+	/// ```rust
+	/// let leaderboard = session.world_leaderboard()?;
+	/// 
+	/// println!(
+	/// 	"The world's best Etterna player is {} with a rating of {}",
+	/// 	leaderboard[0].user.username,
+	/// 	leaderboard[0].rating.overall(),
+	/// );
+	/// ```
+	pub fn global_leaderboard(&mut self) -> Result<Vec<CountryLeaderboardEntry>, Error> {
+		self.generic_leaderboard(&[])
+	}
+
+	/// Retrieves detailed metadata and the replay data about the score with the given scorekey.
+	/// 
+	/// # Errors
+	/// - [`Error::ScoreNotFound`] if the supplied scorekey was not found
+	/// 
+	/// # Example
+	/// ```
+	/// let score_info = session.score_data("S11f0f01ab55220ebbf4e0e5ee28d36cce9a72722")?;
+	/// 
+	/// assert_eq!(score_info.max_combo, 1026)
+	/// ```
 	pub fn score_data(&mut self, scorekey: &str) -> Result<ScoreData, Error> {
 		let json = self.request("score", &[("key", scorekey)])?;
 		let json = json.singular_array_item()?;

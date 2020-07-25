@@ -161,7 +161,7 @@ pub struct ReplayNote {
 	pub note_type: NoteType,
 }
 
-/// Global ranks in each skillset category. See [`Session::user_ranks_per_skillset`](super::Session::user_ranks_per_skillset)
+/// Global ranks in each skillset category
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserRank {
