@@ -171,6 +171,18 @@ impl Skillset7 {
 		[Self::Stream, Self::Jumpstream, Self::Handstream, Self::Stamina, Self::Jackspeed,
 			Self::Chordjack, Self::Technical].iter().copied()
 	}
+
+	pub fn into_skillset8(self) -> Skillset8 {
+		match self {
+			Self::Stream => Skillset8::Stream,
+			Self::Jumpstream => Skillset8::Jumpstream,
+			Self::Handstream => Skillset8::Handstream,
+			Self::Stamina => Skillset8::Stamina,
+			Self::Jackspeed => Skillset8::Jackspeed,
+			Self::Chordjack => Skillset8::Chordjack,
+			Self::Technical => Skillset8::Technical,
+		}
+	}
 }
 
 /// Skillsets enum, including overall
@@ -220,36 +232,32 @@ impl Skillset8 {
 		[Self::Overall, Self::Stream, Self::Jumpstream, Self::Handstream, Self::Stamina,
 			Self::Jackspeed, Self::Chordjack, Self::Technical].iter().copied()
 	}
+
+	pub fn into_skillset7(self) -> Option<Skillset7> {
+		match self {
+			Self::Overall => None,
+			Self::Stream => Some(Skillset7::Stream),
+			Self::Jumpstream => Some(Skillset7::Jumpstream),
+			Self::Handstream => Some(Skillset7::Handstream),
+			Self::Stamina => Some(Skillset7::Stamina),
+			Self::Jackspeed => Some(Skillset7::Jackspeed),
+			Self::Chordjack => Some(Skillset7::Chordjack),
+			Self::Technical => Some(Skillset7::Technical),
+		}
+	}
 }
 
 impl TryFrom<Skillset8> for Skillset7 {
 	type Error = ();
 
 	fn try_from(ss: Skillset8) -> Result<Skillset7, ()> {
-		match ss {
-			Skillset8::Overall => Err(()),
-			Skillset8::Stream => Ok(Self::Stream),
-			Skillset8::Jumpstream => Ok(Self::Jumpstream),
-			Skillset8::Handstream => Ok(Self::Handstream),
-			Skillset8::Stamina => Ok(Self::Stamina),
-			Skillset8::Jackspeed => Ok(Self::Jackspeed),
-			Skillset8::Chordjack => Ok(Self::Chordjack),
-			Skillset8::Technical => Ok(Self::Technical),
-		}
+		ss.into_skillset7().ok_or(())
 	}
 }
 
 impl std::convert::From<Skillset7> for Skillset8 {
 	fn from(ss: Skillset7) -> Skillset8 {
-		match ss {
-			Skillset7::Stream => Self::Stream,
-			Skillset7::Jumpstream => Self::Jumpstream,
-			Skillset7::Handstream => Self::Handstream,
-			Skillset7::Stamina => Self::Stamina,
-			Skillset7::Jackspeed => Self::Jackspeed,
-			Skillset7::Chordjack => Self::Chordjack,
-			Skillset7::Technical => Self::Technical,
-		}
+		ss.into_skillset8()
 	}
 }
 

@@ -17,6 +17,18 @@ pub(crate) fn note_type_from_eo(note_type: &serde_json::Value) -> Result<NoteTyp
 	}
 }
 
+pub(crate) fn skillset_to_eo(skillset: Skillset7) -> &'static str {
+	match skillset {
+		Skillset7::Stream => "Stream",
+		Skillset7::Jumpstream => "Jumpstream",
+		Skillset7::Handstream => "Handstream",
+		Skillset7::Stamina => "Stamina",
+		Skillset7::Jackspeed => "JackSpeed",
+		Skillset7::Chordjack => "Chordjack",
+		Skillset7::Technical => "Technical",
+	}
+}
+
 pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
 	if json.is_null() {
 		return Ok(None);

@@ -16,18 +16,6 @@ fn difficulty_from_eo(string: &str) -> Result<Difficulty, Error> {
 	})
 }
 
-fn skillset_to_eo(skillset: Skillset7) -> &'static str {
-	match skillset {
-		Skillset7::Stream => "Stream",
-		Skillset7::Jumpstream => "Jumpstream",
-		Skillset7::Handstream => "Handstream",
-		Skillset7::Stamina => "Stamina",
-		Skillset7::Jackspeed => "JackSpeed",
-		Skillset7::Chordjack => "Chordjack",
-		Skillset7::Technical => "Technical",
-	}
-}
-
 fn chart_skillsets_from_eo(json: &serde_json::Value) -> Result<ChartSkillsets, Error> {
 	Ok(ChartSkillsets {
 		stream: json["Stream"].f32_()?,
@@ -367,7 +355,7 @@ impl Session {
 	) -> Result<Vec<TopScore>, Error> {
 		self.parse_top_scores(&format!(
 			"user/{}/top/{}/{}",
-			username, skillset_to_eo(skillset), limit
+			username, crate::common::skillset_to_eo(skillset), limit
 		))
 	}
 
@@ -424,11 +412,11 @@ impl Session {
 	/// // Retrieve "kangalioo"'s rank for each skillset
 	/// let scores = session.user_ranks("kangalioo")?;
 	/// ```
-	pub fn user_ranks_per_skillset(&mut self, username: &str) -> Result<UserRanksPerSkillset, Error> {
+	pub fn user_ranks_per_skillset(&mut self, username: &str) -> Result<UserRank, Error> {
 		let json = self.get(&format!("user/{}/ranks", username))?;
 		let json = &json["attributes"];
 
-		Ok(UserRanksPerSkillset {
+		Ok(UserRank {
 			overall: json["Overall"].as_i64().unwrap() as u32,
 			stream: json["Stream"].as_i64().unwrap() as u32,
 			jumpstream: json["Jumpstream"].as_i64().unwrap() as u32,

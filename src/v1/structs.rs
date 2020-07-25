@@ -1,6 +1,7 @@
 pub use crate::common::structs::*;
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SongData {
 	pub songkey: String, // I have no idea what key is this. It has no prefix (??)
 	pub id: u32,
@@ -16,6 +17,7 @@ pub struct SongData {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SongChartData {
 	pub chartkey: String,
 	pub msd: f32,
@@ -25,6 +27,7 @@ pub struct SongChartData {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SongChartLeaderboardEntry {
 	pub username: String,
 	pub wifescore: f32,
@@ -34,6 +37,7 @@ pub struct SongChartLeaderboardEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PackEntry {
 	pub id: u32,
 	pub name: String,
@@ -45,6 +49,7 @@ pub struct PackEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartLeaderboardEntry {
 	pub ssr: ChartSkillsets,
 	pub wifescore: f32,
@@ -60,9 +65,78 @@ pub struct ChartLeaderboardEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct User {
 	pub username: String,
 	pub avatar: String,
 	pub country_code: String,
 	pub rating: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LatestScore {
+	pub song_name: String,
+	pub rate: f32,
+	pub ssr_overall: f32,
+	pub wifescore: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct UserData {
+	pub user_name: String,
+	pub about_me: String,
+	pub country_code: String,
+	pub is_moderator: bool,
+	pub avatar: String,
+	pub default_modifiers: Option<String>,
+	pub rating: UserSkillsets,
+	pub is_patreon: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TopScore {
+	pub song_name: String,
+	pub rate: f32,
+	pub ssr_overall: f32,
+	pub wifescore: f32,
+	pub chartkey: String,
+	pub scorekey: String,
+	pub difficulty: Difficulty,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CountryLeaderboardEntry {
+	pub username: String,
+	pub avatar: String,
+	pub rating: UserSkillsets,
+	pub country_code: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ScoreData {
+	pub ssr: ChartSkillsets,
+	pub wifescore: f32,
+	pub max_combo: u32,
+	pub is_valid: bool,
+	pub modifiers: String,
+	pub judgements: Judgements,
+	pub datetime: String,
+	pub has_chord_cohesion: bool,
+	pub rate: f32,
+	pub user: User,
+	pub replay: Option<Replay>,
+	pub song: Song,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Default, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Song {
+	pub name: String,
+	pub artist: String,
+	pub id: u32,
 }

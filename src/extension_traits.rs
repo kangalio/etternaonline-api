@@ -102,6 +102,22 @@ pub(crate) trait JsonValueExt: Sized {
 		(|| Some(self.get().as_f64()? as f32))()
 			.idk("f32", self.get())
 	}
+
+	fn difficulty_string(&self) -> Result<crate::Difficulty, Error> {
+		(|| Some(crate::Difficulty::from_long_string(self.get().as_str()?)?))()
+			.idk("difficulty", self.get())
+	}
+
+	fn singular_array_item(&self) -> Result<&serde_json::Value, Error> {
+		(|| {
+			let arr = self.get().as_array()?;
+			match arr.len() {
+				1 => Some(&arr[0]),
+				_ => None,
+			}
+		})()
+			.idk("array with a single item", self.get())
+	}
 }
 
 impl JsonValueExt for serde_json::Value {
