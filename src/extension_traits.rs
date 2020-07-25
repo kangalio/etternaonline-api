@@ -68,6 +68,18 @@ pub(crate) trait JsonValueExt: Sized {
 	fn f32_string(&self) -> Result<f32, Error> {
 		Ok(self.str_()?.parse().json_unwrap()?)
 	}
+
+	fn u64_(&self) -> Result<u64, Error> {
+		Ok(self.get().as_u64().json_unwrap()?)
+	}
+
+	fn u32_(&self) -> Result<u32, Error> {
+		Ok(self.u64_()? as u32)
+	}
+
+	fn f32_(&self) -> Result<f32, Error> {
+		Ok(self.get().as_f64().json_unwrap()? as f32)
+	}
 }
 
 impl JsonValueExt for serde_json::Value {

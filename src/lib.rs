@@ -104,3 +104,40 @@ fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time
 	}
 	*last_request = now;
 }
+
+fn note_type_from_eo(note_type: &serde_json::Value) -> Result<NoteType, Error> {
+	match note_type.as_i64().unwrap() {
+		1 => Ok(NoteType::Tap),
+		2 => Ok(NoteType::HoldHead),
+		3 => Ok(NoteType::HoldTail),
+		4 => Ok(NoteType::Mine),
+		5 => Ok(NoteType::Lift),
+		6 => Ok(NoteType::Keysound),
+		7 => Ok(NoteType::Fake),
+		other => Err(Error::UnexpectedResponse(format!("Unexpected note type integer {}", other))),
+	}
+}
+
+fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
+	let replay_str = match json.as_array().unwrap()[0].as_str() {
+		Some(replay_str) => replay_str,
+		None => return Ok(None),
+	};
+
+	let json: serde_json::Value = serde_json::from_str(replay_str)
+		.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
+
+	let mut notes = Vec::new();
+	for note_json in json.as_array().unwrap() {
+		let note_json = note_json.as_array().unwrap();
+		notes.push(ReplayNote {
+			time: note_json[0].as_f64().unwrap(),
+			deviation: note_json[1].as_f64().unwrap() / 1000.0,
+			lane: note_json[2].as_i64().unwrap() as u8,
+			note_type: note_type_from_eo(&note_json[3])?,
+			tick: note_json.get(4).map(|x| x.as_i64().unwrap() as u32), // it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
+		});
+	}
+
+	Ok(Some(Replay { notes }))
+}

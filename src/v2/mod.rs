@@ -51,19 +51,6 @@ fn user_skillsets_from_eo(json: &serde_json::Value) -> UserSkillsets {
 	}
 }
 
-fn note_type_from_eo(note_type: &serde_json::Value) -> Result<NoteType, Error> {
-	match note_type.as_i64().unwrap() {
-		1 => Ok(NoteType::Tap),
-		2 => Ok(NoteType::HoldHead),
-		3 => Ok(NoteType::HoldTail),
-		4 => Ok(NoteType::Mine),
-		5 => Ok(NoteType::Lift),
-		6 => Ok(NoteType::Keysound),
-		7 => Ok(NoteType::Fake),
-		other => Err(Error::UnexpectedResponse(format!("Unexpected note type integer {}", other))),
-	}
-}
-
 fn parse_judgements(json: &serde_json::Value) -> Judgements {
 	Judgements {
 		marvelouses: json["marvelous"].as_i64().unwrap() as u32,
@@ -77,30 +64,6 @@ fn parse_judgements(json: &serde_json::Value) -> Judgements {
 		let_go_holds: json["letGoHold"].as_i64().unwrap() as u32,
 		missed_holds: json["missedHold"].as_i64().unwrap() as u32,
 	}
-}
-
-fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
-	let replay_str = match json.as_array().unwrap()[0].as_str() {
-		Some(replay_str) => replay_str,
-		None => return Ok(None),
-	};
-
-	let json: serde_json::Value = serde_json::from_str(replay_str)
-		.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
-
-	let mut notes = Vec::new();
-	for note_json in json.as_array().unwrap() {
-		let note_json = note_json.as_array().unwrap();
-		notes.push(ReplayNote {
-			time: note_json[0].as_f64().unwrap(),
-			deviation: note_json[1].as_f64().unwrap() / 1000.0,
-			lane: note_json[2].as_i64().unwrap() as u8,
-			note_type: note_type_from_eo(&note_json[3])?,
-			tick: note_json.get(4).map(|x| x.as_i64().unwrap() as u32), // it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
-		});
-	}
-
-	Ok(Some(Replay { notes }))
 }
 
 fn parse_score_data_user_1(json: &serde_json::Value) -> ScoreUser {
@@ -549,7 +512,7 @@ impl Session {
 			song_id: json["song"]["id"].as_i64().unwrap() as u32,
 			ssr: chart_skillsets_from_eo(&json["skillsets"]),
 			judgements: parse_judgements(&json["judgements"]),
-			replay: parse_replay(&json["replay"])?,
+			replay: crate::parse_replay(&json["replay"])?,
 			user: parse_score_data_user_2(&json["user"]),
 		})
 	}

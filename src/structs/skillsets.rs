@@ -77,7 +77,7 @@ mod calc_rating {
 	// }
 }
 
-/// Skillset information. Used for player ratings, score specific ratings or difficulty
+/// Skillset information. Used for chart specific difficulty, i.e. MSD and SSR
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartSkillsets {
@@ -115,7 +115,7 @@ impl ChartSkillsets {
 	}
 }
 
-/// Skillset information. Used for player ratings, score specific ratings or difficulty
+/// Skillset information. Used for player ratings
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserSkillsets {

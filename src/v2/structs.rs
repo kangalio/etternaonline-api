@@ -114,29 +114,6 @@ pub struct ScoreUser {
 	pub overall_rating: f64,
 }
 
-/// Replay data, contains [`ReplayNote`]
-#[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Replay {
-	pub notes: Vec<ReplayNote>,
-}
-
-/// A singular note, used inside [`Replay`]
-#[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ReplayNote {
-	/// The position of the note inside the chart, in seconds
-	pub time: f64,
-	/// The offset that the note was hit with, in seconds. A 50ms early hit would be `-0.05`
-	pub deviation: f64,
-	/// The position of the ntoe inside the chart, in ticks (192nds)
-	pub tick: Option<u32>,
-	/// The lane/column that this note appears on. 0-3 for 4k, 0-5 for 6k
-	pub lane: u8,
-	/// Type of the note (tap, hold, mine etc.)
-	pub note_type: NoteType,
-}
-
 /// Score information in the context of a [chart leaderboard](super::Session::chart_leaderboard)
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

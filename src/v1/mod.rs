@@ -3,6 +3,7 @@ pub use structs::*;
 
 use crate::Error;
 use crate::extension_traits::*;
+use crate::structs::*;
 
 
 pub struct Session {
@@ -58,22 +59,84 @@ impl Session {
 			banner_url: json["banner"].string()?,
 			background_url: json["banner"].string()?,
 			cdtitle: json["cdtitle"].string_maybe()?,
-			charts: json["charts"].array()?.iter().map(|json| Ok(ChartData {
+			charts: json["charts"].array()?.iter().map(|json| Ok(SongChartData {
 				chartkey: json["chartkey"].string()?,
 				msd: json["msd"].f32_string()?,
 				difficulty: crate::Difficulty::from_long_string(json["difficulty"].str_()?).json_unwrap()?,
 				is_blacklisted: json["blacklisted"].bool_int_string()?,
-				leaderboard: json["leaderboard"].array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
+				leaderboard: json["leaderboard"].array()?.iter().map(|json| Ok(SongChartLeaderboardEntry {
 					username: json["username"].string()?,
 					wifescore: json["wifescore"].f32_string()?,
 					ssr_overall: json["Overall"].f32_string()?,
 					rate: json["user_chart_rate_rate"].f32_string()?,
 					datetime: json["datetime"].string()?,
-				})).collect::<Result<Vec<ChartLeaderboardEntry>, Error>>()?,
-			})).collect::<Result<Vec<ChartData>, Error>>()?,
+				})).collect::<Result<Vec<SongChartLeaderboardEntry>, Error>>()?,
+			})).collect::<Result<Vec<SongChartData>, Error>>()?,
 			packs: json["packs"].array()?.iter().map(|v| Ok(
 				v.string()?
 			)).collect::<Result<Vec<String>, Error>>()?,
 		})
+	}
+
+	pub fn client_version(&mut self) -> Result<String, Error> {
+		Ok(self.request("clientVersion", &[])?["version"].string()?)
+	}
+
+	/// Retrieve the link where you can register for an EO account
+	pub fn register_link(&mut self) -> Result<String, Error> {
+		Ok(self.request("registerLink", &[])?["link"].string()?)
+	}
+
+	pub fn pack_list(&mut self) -> Result<Vec<PackEntry>, Error> {
+		self.request("pack_list", &[])?.array()?.iter().map(|json| Ok(PackEntry {
+			id: json["packid"].u32_()?,
+			name: json["packname"].string()?,
+			average_msd: json["average"].f32_()?,
+			date_added: json["date"].string()?,
+			download_link: json["download"].string()?,
+			download_link_mirror: json["mirror"].string()?,
+			size: FileSize::from_bytes(json["size"].u64_()?),
+		})).collect()
+	}
+
+	pub fn chart_leaderboard(&mut self, chartkey: &str) -> Result<Vec<ChartLeaderboardEntry>, Error> {
+		let json = self.request("chartLeaderboard", &[("chartkey", chartkey)])?;
+		json.array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
+			ssr: ChartSkillsets {
+				stream: json["Stream"].f32_string()?,
+				jumpstream: json["Jumpstream"].f32_string()?,
+				handstream: json["Handstream"].f32_string()?,
+				stamina: json["Stamina"].f32_string()?,
+				jackspeed: json["JackSpeed"].f32_string()?,
+				chordjack: json["Chordjack"].f32_string()?,
+				technical: json["Technical"].f32_string()?,
+			},
+			wifescore: json["wifescore"].f32_string()?,
+			max_combo: json["maxcombo"].u32_string()?,
+			is_valid: json["valid"].bool_int_string()?,
+			modifiers: json["modifiers"].string()?,
+			judgements: Judgements {
+				marvelouses: json["marv"].u32_string()?,
+				perfects: json["perfect"].u32_string()?,
+				greats: json["great"].u32_string()?,
+				goods: json["good"].u32_string()?,
+				bads: json["bad"].u32_string()?,
+				misses: json["miss"].u32_string()?,
+				hit_mines: json["hitmine"].u32_string()?,
+				held_holds: json["held"].u32_string()?,
+				let_go_holds: json["letgo"].u32_string()?,
+				missed_holds: json["missedhold"].u32_string()?,
+			},
+			datetime: json["datetime"].string()?,
+			has_chord_cohesion: !json["nocc"].bool_int_string()?,
+			rate: json["user_chart_rate_rate"].f32_string()?,
+			user: User {
+				username: json["username"].string()?,
+				avatar: json["avatar"].string()?,
+				country_code: json["countryCode"].string()?,
+				rating: json["player_rating"].f32_string()?,
+			},
+			replay: crate::parse_replay(&json["replay"])?,
+		})).collect()
 	}
 }
