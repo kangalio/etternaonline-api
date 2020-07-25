@@ -22,7 +22,7 @@ pub struct TopScore {
 	pub scorekey: String,
 	pub song_name: String,
 	pub ssr_overall: f32,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub rate: Rate,
 	pub difficulty: Difficulty,
 	pub chartkey: String,
@@ -36,7 +36,7 @@ pub struct LatestScore {
 	pub scorekey: String,
 	pub song_name: String,
 	pub ssr_overall: f32,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub rate: Rate,
 	pub difficulty: Difficulty,
 
@@ -48,7 +48,7 @@ pub struct LatestScore {
 pub struct TopScorePerSkillset {
 	pub song_name: String,
 	pub rate: Rate,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub chartkey: String,
 	pub scorekey: String,
 	pub difficulty: Difficulty,
@@ -76,7 +76,7 @@ pub struct ScoreData {
 	pub scorekey: String,
 	pub modifiers: String,
 	pub ssr: ChartSkillsets,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub rate: Rate,
 	pub max_combo: u32,
 	pub is_valid: bool,
@@ -105,7 +105,7 @@ pub struct ScoreUser {
 pub struct ChartLeaderboardScore {
 	pub scorekey: String,
 	pub ssr: ChartSkillsets,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub rate: Rate,
 	pub max_combo: u32,
 	pub is_valid: bool,
@@ -131,7 +131,7 @@ pub struct LeaderboardEntry {
 pub struct ScoreGoal {
 	pub chartkey: String,
 	pub rate: Rate,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub time_assigned: String,
 	pub time_achieved: Option<String>,
 }

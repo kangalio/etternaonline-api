@@ -123,8 +123,8 @@ impl Session {
 				is_blacklisted: json["blacklisted"].bool_int_string()?,
 				leaderboard: json["leaderboard"].array()?.iter().map(|json| Ok(SongChartLeaderboardEntry {
 					username: json["username"].string()?,
-					wifescore: json["wifescore"].f32_string()?,
-					ssr_overall: json["Overall"].f32_string()?,
+					wifescore: json["wifescore"].wifescore_proportion_string()?,
+					ssr_overall: json["Overall"].f32_()?,
 					rate: json["user_chart_rate_rate"].rate_string()?,
 					datetime: json["datetime"].string()?,
 				})).collect::<Result<Vec<SongChartLeaderboardEntry>, Error>>()?,
@@ -204,7 +204,7 @@ impl Session {
 				chordjack: json["Chordjack"].f32_string()?,
 				technical: json["Technical"].f32_string()?,
 			},
-			wifescore: json["wifescore"].f32_string()?,
+			wifescore: json["wifescore"].wifescore_proportion_string()?,
 			max_combo: json["maxcombo"].u32_string()?,
 			is_valid: json["valid"].bool_int_string()?,
 			modifiers: json["modifiers"].string()?,
@@ -250,7 +250,7 @@ impl Session {
 			song_name: json["songname"].string()?,
 			rate: json["user_chart_rate_rate"].rate_string()?,
 			ssr_overall: json["Overall"].f32_string()?,
-			wifescore: json["wifescore"].f32_string()?,
+			wifescore: json["wifescore"].wifescore_proportion_string()?,
 		})).collect()
 	}
 
@@ -361,7 +361,7 @@ impl Session {
 			song_name: json["songname"].string()?, // "Everytime I hear Your Name"
 			rate: json["user_chart_rate_rate"].rate_string()?, // "1.40"
 			ssr_overall: json["Overall"].f32_string()?, // "30.78"
-			wifescore: json["wifescore"].f32_string()?, // "0.96986"
+			wifescore: json["wifescore"].wifescore_proportion_string()?, // "0.96986"
 			chartkey: json["chartkey"].string()?, // "X4b537c03eb1f72168f51a0ab92f8a58a62fbe4b4"
 			scorekey: json["scorekey"].string()?, // "S11f0f01ab55220ebbf4e0e5ee28d36cce9a72721"
 			difficulty: json["difficulty"].difficulty_string()?, // "Hard"
@@ -443,7 +443,7 @@ impl Session {
 				chordjack: json["Chordjack"].f32_string()?,
 				technical: json["Technical"].f32_string()?,
 			},
-			wifescore: json["wifescore"].f32_string()?,
+			wifescore: json["wifescore"].wifescore_proportion_string()?,
 			max_combo: json["maxcombo"].u32_string()?,
 			is_valid: json["valid"].bool_int_string()?,
 			modifiers: json["modifiers"].string()?,

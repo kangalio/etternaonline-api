@@ -229,3 +229,53 @@ impl Default for Rate {
         Self::from_x20(20)
     }
 }
+
+#[derive(PartialEq, PartialOrd, Default, Copy, Clone, Debug)]
+/// Wifescore struct. Guaranteed to be a valid value, i.e. not infinity and not NaN
+pub struct Wifescore {
+	proportion: f32,
+}
+
+impl Wifescore {
+	/// Makes a Wifescore from a value, assumed to be scaled to a max of 100
+	/// 
+	/// Returns None if the percentage is over 100%, or if it is infinite or NaN
+	pub fn from_percent(percent: f32) -> Option<Self> {
+		Self::from_proportion(percent / 100.0)
+	}
+
+	/// Makes a Wifescore from a value, assumed to be scaled to a max of 1
+	/// 
+	/// Returns None if the proportion is over 1.0 (100%), or if it is infinite or NaN
+	pub fn from_proportion(proportion: f32) -> Option<Self> {
+		if proportion.is_normal() && proportion <= 1.0 {
+			Some(Self { proportion })
+		} else {
+			None
+		}
+	}
+
+	/// Returns the wifescore, scaled to a max of 100
+	pub fn as_percent(self) -> f32 {
+		self.proportion * 100.0
+	}
+
+	/// Returns the wifescore, scaled to a max of 1
+	pub fn as_proportion(self) -> f32 {
+		self.proportion
+	}
+}
+
+impl std::fmt::Display for Wifescore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}%", self.as_percent())
+    }
+}
+
+impl Ord for Wifescore {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+		other.partial_cmp(other).expect("Can't happen; this wrapper guarantees non-NaN")
+    }
+}
+
+impl Eq for Wifescore {}

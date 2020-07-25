@@ -30,7 +30,7 @@ pub struct SongChartData {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SongChartLeaderboardEntry {
 	pub username: String,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub ssr_overall: f32,
 	pub rate: Rate,
 	pub datetime: String,
@@ -52,7 +52,7 @@ pub struct PackEntry {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartLeaderboardEntry {
 	pub ssr: ChartSkillsets,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub max_combo: u32,
 	pub is_valid: bool,
 	pub modifiers: String,
@@ -79,7 +79,7 @@ pub struct LatestScore {
 	pub song_name: String,
 	pub rate: Rate,
 	pub ssr_overall: f32,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -101,7 +101,7 @@ pub struct TopScore {
 	pub song_name: String,
 	pub rate: Rate,
 	pub ssr_overall: f32,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub chartkey: String,
 	pub scorekey: String,
 	pub difficulty: Difficulty,
@@ -120,7 +120,7 @@ pub struct CountryLeaderboardEntry {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreData {
 	pub ssr: ChartSkillsets,
-	pub wifescore: f32,
+	pub wifescore: Wifescore,
 	pub max_combo: u32,
 	pub is_valid: bool,
 	pub modifiers: String,

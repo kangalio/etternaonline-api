@@ -130,6 +130,21 @@ pub(crate) trait JsonValueExt: Sized {
 		(|| Some(crate::Rate::from_f32(self.get().as_f64()? as f32)?))()
 			.idk("rate float", self.get())
 	}
+
+	fn wifescore_percent_float(&self) -> Result<crate::Wifescore, Error> {
+		(|| Some(crate::Wifescore::from_percent(self.get().as_f64()? as f32)?))()
+			.idk("wifescore percent float", self.get())
+	}
+
+	fn wifescore_proportion_float(&self) -> Result<crate::Wifescore, Error> {
+		(|| Some(crate::Wifescore::from_proportion(self.get().as_f64()? as f32)?))()
+			.idk("wifescore proportion float", self.get())
+	}
+	
+	fn wifescore_proportion_string(&self) -> Result<crate::Wifescore, Error> {
+		(|| Some(crate::Wifescore::from_proportion(self.get().as_str()?.parse().ok()?)?))()
+			.idk("wifescore proportion string", self.get())
+	}
 }
 
 impl JsonValueExt for serde_json::Value {

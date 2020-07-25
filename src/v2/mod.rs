@@ -318,7 +318,7 @@ impl Session {
 				scorekey: score_json["id"].as_str().unwrap().to_owned(),
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
 				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
-				wifescore: score_json["attributes"]["wife"].f32_()? / 100.0,
+				wifescore: score_json["attributes"]["wife"].wifescore_percent_float()?,
 				rate: score_json["attributes"]["rate"].rate_float()?,
 				difficulty,
 				chartkey: score_json["attributes"]["chartKey"].as_str().unwrap().to_owned(),
@@ -385,7 +385,7 @@ impl Session {
 				scorekey: score_json["id"].as_str().unwrap().to_owned(),
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
 				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
-				wifescore: score_json["attributes"]["wife"].f32_()? / 100.0,
+				wifescore: score_json["attributes"]["wife"].wifescore_percent_float()?,
 				rate: score_json["attributes"]["rate"].rate_float()?,
 				difficulty: difficulty_from_eo(score_json["attributes"]["difficulty"].as_str().unwrap())?,
 			});
@@ -442,7 +442,7 @@ impl Session {
 				scores.push(TopScorePerSkillset {
 					song_name: score_json["songname"].as_str().unwrap().to_owned(),
 					rate: score_json["user_chart_rate_rate"].rate_float()?,
-					wifescore: score_json["wifescore"].f32_()?,
+					wifescore: score_json["wifescore"].wifescore_proportion_float()?,
 					chartkey: score_json["chartkey"].as_str().unwrap().to_owned(),
 					scorekey: score_json["scorekey"].as_str().unwrap().to_owned(),
 					difficulty: difficulty_from_eo(score_json["difficulty"].as_str().unwrap())?,
@@ -483,7 +483,7 @@ impl Session {
 		Ok(ScoreData {
 			scorekey,
 			modifiers: json["modifiers"].as_str().unwrap().to_owned(),
-			wifescore: json["wife"].f32_()?,
+			wifescore: json["wife"].wifescore_proportion_float()?,
 			rate: json["rate"].rate_float()?,
 			max_combo: json["maxCombo"].as_i64().unwrap() as u32,
 			is_valid: json["valid"].as_bool().unwrap(),
@@ -520,7 +520,7 @@ impl Session {
 
 			scores.push(ChartLeaderboardScore {
 				scorekey,
-				wifescore: json["wife"].f32_()? / 100.0,
+				wifescore: json["wife"].wifescore_percent_float()?,
 				max_combo: json["maxCombo"].as_i64().unwrap() as u32,
 				is_valid: json["valid"].as_bool().unwrap(),
 				modifiers: json["modifiers"].as_str().unwrap().to_owned(),
@@ -658,7 +658,7 @@ impl Session {
 		json.as_array().unwrap().iter().map(|json| Ok(ScoreGoal {
 				chartkey: json["attributes"]["chartkey"].as_str().unwrap().to_owned(),
 				rate: json["attributes"]["rate"].rate_float()?,
-				wifescore: json["attributes"]["wife"].f32_()?,
+				wifescore: json["attributes"]["wife"].wifescore_proportion_float()?,
 				time_assigned: json["attributes"]["timeAssigned"].as_str().unwrap().to_owned(),
 				time_achieved: if json["attributes"]["achieved"].as_i64().unwrap() == 0 {
 					None
