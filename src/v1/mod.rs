@@ -84,7 +84,6 @@ impl Session {
 			})
 		}
 
-		println!("{}", serde_json::to_string_pretty(&json).unwrap());
 		Ok(json)
 	}
 

@@ -82,8 +82,4 @@ impl Session {
 			}))
 			.collect()
 	}
-
-	pub fn test(&mut self) {
-		println!("{:#?}", self.packlist(5..15).unwrap());
-	}
 }

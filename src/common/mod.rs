@@ -5,7 +5,7 @@ use crate::Error;
 use crate::extension_traits::*;
 
 pub(crate) fn note_type_from_eo(note_type: &serde_json::Value) -> Result<NoteType, Error> {
-	match note_type.as_i64().unwrap() {
+	match note_type.u32_()? {
 		1 => Ok(NoteType::Tap),
 		2 => Ok(NoteType::HoldHead),
 		3 => Ok(NoteType::HoldTail),
@@ -47,13 +47,16 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 		.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
 
 	let notes = json.array()?.iter().map(|note_json| Ok({
-		let note_json = note_json.as_array().unwrap();
+		let note_json = note_json.array()?;
 		ReplayNote {
 			time: note_json[0].f32_()?,
 			deviation: note_json[1].f32_()? / 1000.0,
-			lane: note_json[2].as_i64().unwrap() as u8,
+			lane: note_json[2].u32_()? as u8,
 			note_type: note_type_from_eo(&note_json[3])?,
-			tick: note_json.get(4).map(|x| x.as_i64().unwrap() as u32), // it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
+			tick: match note_json.get(4) { // it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
+				Some(x) => Some(x.u32_()?),
+				None => None,
+			},
 		}
 	})).collect::<Result<Vec<ReplayNote>, Error>>()?;
 
