@@ -81,7 +81,7 @@ pub struct ScoreData {
 	pub max_combo: u32,
 	pub is_valid: bool,
 	pub has_chord_cohesion: bool,
-	pub judgements: Judgements,
+	pub judgements: FullJudgements,
 	pub replay: Option<Replay>,
 	pub user: ScoreUser,
 	pub song_name: String,
@@ -113,7 +113,7 @@ pub struct ChartLeaderboardScore {
 	pub datetime: String,
 	pub modifiers: String,
 	pub has_replay: bool,
-	pub judgements: Judgements,
+	pub judgements: FullJudgements,
 	pub user: ScoreUser,
 }
 

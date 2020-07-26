@@ -2,7 +2,7 @@ use crate::Error;
 
 pub(crate) trait ApiUnwrap<T> {
 	fn json_unwrap(self) -> Result<T, Error>;
-	fn idk(self, what_was_expected: &'static str, what_we_got: &serde_json::Value) -> Result<T, Error>;
+	fn unwrappp(self, comment: &'static str) -> Result<T, Error>;
 }
 
 impl<T> ApiUnwrap<T> for Option<T> {
@@ -10,17 +10,8 @@ impl<T> ApiUnwrap<T> for Option<T> {
 		self.ok_or(Error::InvalidJsonStructure(None))
 	}
 
-	fn idk(self, what_was_expected: &'static str, what_we_got: &serde_json::Value) -> Result<T, Error> {
-		let mut what_we_got = what_we_got.to_string();
-		if what_we_got.len() > 100 {
-			what_we_got.truncate(100);
-			what_we_got += "...";
-		}
-
-		let msg = format!("Expected {}, found {}", what_was_expected, what_we_got);
-		self.ok_or_else(|| {
-			Error::InvalidJsonStructure(Some(msg))
-		})
+	fn unwrappp(self, comment: &'static str) -> Result<T, Error> {
+		self.ok_or_else(|| Error::InvalidJsonStructure(Some(comment.to_owned())))
 	}
 }
 
@@ -29,8 +20,8 @@ impl<T, E: std::error::Error + 'static + Send + Sync> ApiUnwrap<T> for Result<T,
 		self.map_err(|e| Error::InvalidJsonStructure(Some(e.to_string())))
 	}
 
-	fn idk(self, what_was_expected: &'static str, what_we_got: &serde_json::Value) -> Result<T, Error> {
-		self.ok().idk(what_was_expected, what_we_got)
+	fn unwrappp(self, comment: &'static str) -> Result<T, Error> {
+		self.map_err(|_e| Error::InvalidJsonStructure(Some(comment.to_owned())))
 	}
 }
 
@@ -49,9 +40,25 @@ impl ExtractStr for &str {
 pub(crate) trait JsonValueExt: Sized {
 	fn get(&self) -> &serde_json::Value;
 
+	fn attempt_get<'val, 'content: 'val, T: 'content>(&'val self,
+		what_is_expected: &'static str,
+		action: impl FnOnce(&'val serde_json::Value) -> Option<T>
+	) -> Result<T, Error> {
+		match action(self.get()) {
+			Some(result) => Ok(result),
+			None => Err(Error::InvalidJsonStructure(Some({
+				let mut msg = format!("Expected {}, found {}", what_is_expected, self.get());
+				if msg.len() > 500 {
+					msg.truncate(500);
+					msg += "...";
+				}
+				msg
+			})))
+		}
+	}
+
 	fn str_(&self) -> Result<&str, Error> {
-		self.get().as_str()
-			.idk("string", self.get())
+		self.attempt_get("string", |j| j.as_str())
 	}
 
 	fn string(&self) -> Result<String, Error> {
@@ -59,55 +66,47 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn string_maybe(&self) -> Result<Option<String>, Error> {
-		(|| Some(if self.get().is_null() {
+		self.attempt_get("null or a string", |j| Some(if j.is_null() {
 			None
 		} else {
-			Some(self.get().as_str()?.to_owned())
-		}))()
-			.idk("null or a string", self.get())
+			Some(j.as_str()?.to_owned())
+		}))
 	}
 
 	fn u32_string(&self) -> Result<u32, Error> {
-		(|| self.get().as_str()?.parse::<u32>().ok())()
-			.idk("u32 in a string", self.get())
+		self.attempt_get("u32 in a string", |j| j.as_str()?.parse().ok())
 	}
 
 	fn array(&self) -> Result<&Vec<serde_json::Value>, Error> {
-		self.get().as_array()
-			.idk("array", self.get())
+		self.attempt_get("array", |j| j.as_array())
 	}
 
 	fn bool_(&self) -> Result<bool, Error> {
-		self.get().as_bool()
-			.idk("boolean", self.get())
+		self.attempt_get("boolean", |j| j.as_bool())
 	}
 
 	fn bool_int(&self) -> Result<bool, Error> {
-		(|| match self.get().as_i64()? {
+		self.attempt_get("0 or 1", |j| match j.as_i64()? {
 			0 => Some(false),
 			1 => Some(true),
 			_ => None,
-		})()
-			.idk("0 or 1", self.get())
+		})
 	}
 
 	fn bool_int_string(&self) -> Result<bool, Error> {
-		(|| match self.get().as_str()? {
+		self.attempt_get("\"0\" or \"1\"", |j| match j.as_str()? {
 			"0" => Some(false),
 			"1" => Some(true),
 			_ => None,
-		})()
-			.idk("\"0\" or \"1\"", self.get())
+		})
 	}
 
 	fn f32_string(&self) -> Result<f32, Error> {
-		(|| self.get().as_str()?.parse::<f32>().ok())()
-			.idk("f32 in a string", self.get())
+		self.attempt_get("f32 in a string", |j| j.as_str()?.parse::<f32>().ok())
 	}
 
 	fn u64_(&self) -> Result<u64, Error> {
-		self.get().as_u64()
-			.idk("u64", self.get())
+		self.attempt_get("u64", |j| j.as_u64())
 	}
 
 	fn u32_(&self) -> Result<u32, Error> {
@@ -115,59 +114,49 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn f32_(&self) -> Result<f32, Error> {
-		(|| Some(self.get().as_f64()? as f32))()
-			.idk("f32", self.get())
+		self.attempt_get("f32", |j| Some(j.as_f64()? as f32))
 	}
 
 	fn difficulty_string(&self) -> Result<crate::Difficulty, Error> {
-		(|| crate::Difficulty::from_long_string(self.get().as_str()?))()
-			.idk("difficulty", self.get())
+		self.attempt_get("difficulty", |j| crate::Difficulty::from_long_string(j.as_str()?))
 	}
 
 	fn singular_array_item(&self) -> Result<&serde_json::Value, Error> {
-		(|| {
-			let arr = self.get().as_array()?;
+		self.attempt_get("array with a single item", |j| {
+			let arr = j.as_array()?;
 			match arr.len() {
 				1 => Some(&arr[0]),
 				_ => None,
 			}
-		})()
-			.idk("array with a single item", self.get())
+		})
 	}
 
 	fn rate_string(&self) -> Result<crate::Rate, Error> {
-		(|| crate::Rate::from_string(self.get().as_str()?))()
-			.idk("rate string", self.get())
+		self.attempt_get("rate string", |j| crate::Rate::from_string(j.as_str()?))
 	}
 
 	fn rate_float(&self) -> Result<crate::Rate, Error> {
-		(|| crate::Rate::from_f32(self.get().as_f64()? as f32))()
-			.idk("rate float", self.get())
+		self.attempt_get("rate float", |j| crate::Rate::from_f32(j.as_f64()? as f32))
 	}
 
 	fn wifescore_percent_float(&self) -> Result<crate::Wifescore, Error> {
-		(|| crate::Wifescore::from_percent(self.get().as_f64()? as f32))()
-			.idk("wifescore percent float", self.get())
+		self.attempt_get("wifescore percent float", |j| crate::Wifescore::from_percent(j.as_f64()? as f32))
 	}
 
 	fn wifescore_proportion_float(&self) -> Result<crate::Wifescore, Error> {
-		(|| crate::Wifescore::from_proportion(self.get().as_f64()? as f32))()
-			.idk("wifescore proportion float", self.get())
+		self.attempt_get("wifescore proportion float", |j| crate::Wifescore::from_proportion(j.as_f64()? as f32))
 	}
 	
 	fn wifescore_proportion_string(&self) -> Result<crate::Wifescore, Error> {
-		(|| crate::Wifescore::from_proportion(self.get().as_str()?.parse().ok()?))()
-			.idk("wifescore proportion string", self.get())
+		self.attempt_get("wifescore proportion string", |j| crate::Wifescore::from_proportion(j.as_str()?.parse().ok()?))
 	}
 
 	fn scorekey_string(&self) -> Result<crate::Scorekey, Error> {
-		(|| crate::Scorekey::new(self.get().as_str()?.to_owned()))()
-			.idk("scorekey string", self.get())
+		self.attempt_get("scorekey string", |j| crate::Scorekey::new(j.as_str()?.to_owned()))
 	}
 
 	fn chartkey_string(&self) -> Result<crate::Chartkey, Error> {
-		(|| crate::Chartkey::new(self.get().as_str()?.to_owned()))()
-			.idk("chartkey string", self.get())
+		self.attempt_get("chartkey string", |j| crate::Chartkey::new(j.as_str()?.to_owned()))
 	}
 }
 

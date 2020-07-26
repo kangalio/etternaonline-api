@@ -40,8 +40,8 @@ fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<UserSkillsets, Err
 	})
 }
 
-fn parse_judgements(json: &serde_json::Value) -> Result<Judgements, Error> {
-	Ok(Judgements {
+fn parse_judgements(json: &serde_json::Value) -> Result<FullJudgements, Error> {
+	Ok(FullJudgements {
 		marvelouses: json["marvelous"].u32_()?,
 		perfects: json["perfect"].u32_()?,
 		greats: json["great"].u32_()?,

@@ -50,10 +50,9 @@ impl Difficulty {
 	}
 }
 
-/// Number of judgements on a score
 #[derive(Debug, Eq, PartialEq, Clone, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Judgements {
+pub struct FullJudgements {
 	pub marvelouses: u32,
 	pub perfects: u32,
 	pub greats: u32,
@@ -64,6 +63,17 @@ pub struct Judgements {
 	pub held_holds: u32,
 	pub let_go_holds: u32,
 	pub missed_holds: u32,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Default, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TapJudgements {
+	pub marvelouses: u32,
+	pub perfects: u32,
+	pub greats: u32,
+	pub goods: u32,
+	pub bads: u32,
+	pub misses: u32,
 }
 
 /// Type of a note

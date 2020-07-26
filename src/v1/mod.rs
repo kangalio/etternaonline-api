@@ -106,6 +106,8 @@ impl Session {
 			return Err(Error::SongNotFound);
 		}
 
+		println!("{:#?}", json);
+
 		Ok(SongData {
 			songkey: json["songkey"].string()?,
 			id: json["id"].u32_string()?,
@@ -113,8 +115,8 @@ impl Session {
 			subtitle: json["subtitle"].string_maybe()?,
 			author: json["author"].string()?,
 			artist: json["artist"].string()?,
-			banner_url: json["banner"].string()?,
-			background_url: json["banner"].string()?,
+			banner_url: json["banner"].string_maybe()?,
+			background_url: json["banner"].string_maybe()?,
 			cdtitle: json["cdtitle"].string_maybe()?,
 			charts: json["charts"].array()?.iter().map(|json| Ok(SongChartData {
 				chartkey: json["chartkey"].chartkey_string()?,
@@ -208,7 +210,7 @@ impl Session {
 			max_combo: json["maxcombo"].u32_string()?,
 			is_valid: json["valid"].bool_int_string()?,
 			modifiers: json["modifiers"].string()?,
-			judgements: Judgements {
+			judgements: FullJudgements {
 				marvelouses: json["marv"].u32_string()?,
 				perfects: json["perfect"].u32_string()?,
 				greats: json["great"].u32_string()?,
@@ -271,8 +273,8 @@ impl Session {
 
 		Ok(UserData {
 			user_name: json["username"].string()?, // "kangalioo"
-			about_me: json["aboutme"].string()?, // "<p>I'm a very, very mysterious person.</p>"
-			country_code: json["countrycode"].string()?, // "DE"
+			about_me: json["aboutme"].string_maybe()?, // "<p>I'm a very, very mysterious person.</p>"
+			country_code: json["countrycode"].string_maybe()?, // "DE"
 			is_moderator: json["moderator"].bool_int_string()?, // "0"
 			avatar: json["avatar"].string()?, // "251c375b7c64494a304ea4d3a55afa92.jpg"
 			default_modifiers: json["default_modifiers"].string_maybe()?, // null
@@ -381,7 +383,7 @@ impl Session {
 		})).collect()
 	}
 
-	/// Retrieves the player leaderboard for the given country.
+	/// Retrieves the top 10 players in the given country
 	/// 
 	/// # Errors
 	/// - [`Error::NoUsersFound`] if there are no users registered in this country
@@ -402,7 +404,7 @@ impl Session {
 		self.generic_leaderboard(&[("cc", country_code)])
 	}
 
-	/// Retrieves the worldwide leaderboard of players.
+	/// Retrieves the top 10 players worldwide
 	/// 
 	/// # Example
 	/// ```rust
@@ -447,7 +449,7 @@ impl Session {
 			max_combo: json["maxcombo"].u32_string()?,
 			is_valid: json["valid"].bool_int_string()?,
 			modifiers: json["modifiers"].string()?,
-			judgements: Judgements {
+			judgements: FullJudgements {
 				marvelouses: json["marv"].u32_string()?,
 				perfects: json["perfect"].u32_string()?,
 				greats: json["great"].u32_string()?,
