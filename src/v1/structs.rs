@@ -19,7 +19,7 @@ pub struct SongData {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SongChartData {
-	pub chartkey: String,
+	pub chartkey: Chartkey,
 	pub msd: f32,
 	pub difficulty: Difficulty,
 	pub is_blacklisted: bool,
@@ -102,8 +102,8 @@ pub struct TopScore {
 	pub rate: Rate,
 	pub ssr_overall: f32,
 	pub wifescore: Wifescore,
-	pub chartkey: String,
-	pub scorekey: String,
+	pub chartkey: Chartkey,
+	pub scorekey: Scorekey,
 	pub difficulty: Difficulty,
 }
 

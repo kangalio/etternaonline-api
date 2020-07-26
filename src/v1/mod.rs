@@ -84,6 +84,7 @@ impl Session {
 			})
 		}
 
+		println!("{}", serde_json::to_string_pretty(&json).unwrap());
 		Ok(json)
 	}
 
@@ -117,7 +118,7 @@ impl Session {
 			background_url: json["banner"].string()?,
 			cdtitle: json["cdtitle"].string_maybe()?,
 			charts: json["charts"].array()?.iter().map(|json| Ok(SongChartData {
-				chartkey: json["chartkey"].string()?,
+				chartkey: json["chartkey"].chartkey_string()?,
 				msd: json["msd"].f32_string()?,
 				difficulty: crate::Difficulty::from_long_string(json["difficulty"].str_()?).json_unwrap()?,
 				is_blacklisted: json["blacklisted"].bool_int_string()?,
@@ -192,8 +193,8 @@ impl Session {
 	/// let leaderboard = session.chart_leaderboard("Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d3")?;
 	/// assert_eq!(leaderboard[0].user.username, "kangalioo"); // As of 2020-07-25
 	/// ```
-	pub fn chart_leaderboard(&mut self, chartkey: &str) -> Result<Vec<ChartLeaderboardEntry>, Error> {
-		let json = self.request("chartLeaderboard", &[("chartkey", chartkey)])?;
+	pub fn chart_leaderboard(&mut self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardEntry>, Error> {
+		let json = self.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])?;
 		json.array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
 			ssr: ChartSkillsets {
 				stream: json["Stream"].f32_string()?,
@@ -362,8 +363,8 @@ impl Session {
 			rate: json["user_chart_rate_rate"].rate_string()?, // "1.40"
 			ssr_overall: json["Overall"].f32_string()?, // "30.78"
 			wifescore: json["wifescore"].wifescore_proportion_string()?, // "0.96986"
-			chartkey: json["chartkey"].string()?, // "X4b537c03eb1f72168f51a0ab92f8a58a62fbe4b4"
-			scorekey: json["scorekey"].string()?, // "S11f0f01ab55220ebbf4e0e5ee28d36cce9a72721"
+			chartkey: json["chartkey"].chartkey_string()?, // "X4b537c03eb1f72168f51a0ab92f8a58a62fbe4b4"
+			scorekey: json["scorekey"].scorekey_string()?, // "S11f0f01ab55220ebbf4e0e5ee28d36cce9a72721"
 			difficulty: json["difficulty"].difficulty_string()?, // "Hard"
 		})).collect()
 	}

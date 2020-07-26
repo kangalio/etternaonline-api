@@ -19,13 +19,13 @@ pub struct UserDetails {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TopScore {
-	pub scorekey: String,
+	pub scorekey: Scorekey,
 	pub song_name: String,
 	pub ssr_overall: f32,
 	pub wifescore: Wifescore,
 	pub rate: Rate,
 	pub difficulty: Difficulty,
-	pub chartkey: String,
+	pub chartkey: Chartkey,
 	pub base_msd: ChartSkillsets,
 }
 
@@ -33,7 +33,7 @@ pub struct TopScore {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LatestScore {
-	pub scorekey: String,
+	pub scorekey: Scorekey,
 	pub song_name: String,
 	pub ssr_overall: f32,
 	pub wifescore: Wifescore,
@@ -49,8 +49,8 @@ pub struct TopScorePerSkillset {
 	pub song_name: String,
 	pub rate: Rate,
 	pub wifescore: Wifescore,
-	pub chartkey: String,
-	pub scorekey: String,
+	pub chartkey: Chartkey,
+	pub scorekey: Scorekey,
 	pub difficulty: Difficulty,
 	pub ssr: ChartSkillsets,
 }
@@ -73,7 +73,7 @@ pub struct UserTopScoresPerSkillset {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreData {
-	pub scorekey: String,
+	pub scorekey: Scorekey,
 	pub modifiers: String,
 	pub ssr: ChartSkillsets,
 	pub wifescore: Wifescore,
@@ -103,7 +103,7 @@ pub struct ScoreUser {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartLeaderboardScore {
-	pub scorekey: String,
+	pub scorekey: Scorekey,
 	pub ssr: ChartSkillsets,
 	pub wifescore: Wifescore,
 	pub rate: Rate,
@@ -129,7 +129,7 @@ pub struct LeaderboardEntry {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreGoal {
-	pub chartkey: String,
+	pub chartkey: Chartkey,
 	pub rate: Rate,
 	pub wifescore: Wifescore,
 	pub time_assigned: String,

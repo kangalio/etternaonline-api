@@ -68,7 +68,7 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn u32_string(&self) -> Result<u32, Error> {
-		(|| Some(self.get().as_str()?.parse::<u32>().ok()?))()
+		(|| self.get().as_str()?.parse::<u32>().ok())()
 			.idk("u32 in a string", self.get())
 	}
 
@@ -87,7 +87,7 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn f32_string(&self) -> Result<f32, Error> {
-		(|| Some(self.get().as_str()?.parse::<f32>().ok()?))()
+		(|| self.get().as_str()?.parse::<f32>().ok())()
 			.idk("f32 in a string", self.get())
 	}
 
@@ -106,7 +106,7 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn difficulty_string(&self) -> Result<crate::Difficulty, Error> {
-		(|| Some(crate::Difficulty::from_long_string(self.get().as_str()?)?))()
+		(|| crate::Difficulty::from_long_string(self.get().as_str()?))()
 			.idk("difficulty", self.get())
 	}
 
@@ -122,28 +122,38 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn rate_string(&self) -> Result<crate::Rate, Error> {
-		(|| Some(crate::Rate::from_string(self.get().as_str()?)?))()
+		(|| crate::Rate::from_string(self.get().as_str()?))()
 			.idk("rate string", self.get())
 	}
 
 	fn rate_float(&self) -> Result<crate::Rate, Error> {
-		(|| Some(crate::Rate::from_f32(self.get().as_f64()? as f32)?))()
+		(|| crate::Rate::from_f32(self.get().as_f64()? as f32))()
 			.idk("rate float", self.get())
 	}
 
 	fn wifescore_percent_float(&self) -> Result<crate::Wifescore, Error> {
-		(|| Some(crate::Wifescore::from_percent(self.get().as_f64()? as f32)?))()
+		(|| crate::Wifescore::from_percent(self.get().as_f64()? as f32))()
 			.idk("wifescore percent float", self.get())
 	}
 
 	fn wifescore_proportion_float(&self) -> Result<crate::Wifescore, Error> {
-		(|| Some(crate::Wifescore::from_proportion(self.get().as_f64()? as f32)?))()
+		(|| crate::Wifescore::from_proportion(self.get().as_f64()? as f32))()
 			.idk("wifescore proportion float", self.get())
 	}
 	
 	fn wifescore_proportion_string(&self) -> Result<crate::Wifescore, Error> {
-		(|| Some(crate::Wifescore::from_proportion(self.get().as_str()?.parse().ok()?)?))()
+		(|| crate::Wifescore::from_proportion(self.get().as_str()?.parse().ok()?))()
 			.idk("wifescore proportion string", self.get())
+	}
+
+	fn scorekey_string(&self) -> Result<crate::Scorekey, Error> {
+		(|| crate::Scorekey::new(self.get().as_str()?.to_owned()))()
+			.idk("scorekey string", self.get())
+	}
+
+	fn chartkey_string(&self) -> Result<crate::Chartkey, Error> {
+		(|| crate::Chartkey::new(self.get().as_str()?.to_owned()))()
+			.idk("chartkey string", self.get())
 	}
 }
 

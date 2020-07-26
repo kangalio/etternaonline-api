@@ -248,10 +248,10 @@ impl Wifescore {
 	/// 
 	/// Returns None if the proportion is over 1.0 (100%), or if it is infinite or NaN
 	pub fn from_proportion(proportion: f32) -> Option<Self> {
-		if proportion.is_normal() && proportion <= 1.0 {
-			Some(Self { proportion })
-		} else {
+		if proportion.is_infinite() || proportion.is_nan() || proportion > 1.0 {
 			None
+		} else {
+			Some(Self { proportion })
 		}
 	}
 
@@ -279,3 +279,61 @@ impl Ord for Wifescore {
 }
 
 impl Eq for Wifescore {}
+
+// Implementation for both chartkey and scorekey (and potentially even songkey in the future? maybe
+// once I figure out what the hell songkey even is)
+macro_rules! etterna_data_key {
+	($name:ident, $initial_letter:expr) => (
+		// TODO: maybe it's a good idea to represent this as [u8; 20] instead? not sure
+		#[derive(Debug, Clone, Eq, PartialEq, Hash, /* NOT Default, it would produce an invalid state! */)]
+		pub struct $name(String);
+
+		impl $name {
+			pub fn is_valid(key: &str) -> bool {
+				let initial_letter: char = $initial_letter;
+
+				key.len() == 41
+					&& key.starts_with(initial_letter)
+					&& !key[1..].contains(|c| (c < '0' || c > '9') && (c < 'a' || c > 'f'))
+			}
+
+			pub fn new(key: String) -> Option<Self> {
+				if Self::is_valid(&key) {
+					Some(Self(key))
+				} else {
+					None
+				}
+			}
+
+			pub fn as_str(&self) -> &str {
+				&self.0
+			}
+
+			pub fn into_string(self) -> String {
+				self.0
+			}
+		}
+
+		impl std::fmt::Display for $name {
+			fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+				write!(f, "{}", self.as_str())
+			}
+		}
+
+		impl From<$name> for String {
+			fn from(key: $name) -> String { key.into_string() }
+		}
+
+		impl AsRef<str> for $name {
+			fn as_ref(&self) -> &str { self.as_str() }
+		}
+
+		impl std::convert::TryFrom<String> for $name {
+			type Error = ();
+			fn try_from(key: String) -> Result<Self, ()> { Self::new(key).ok_or(()) }
+		}
+	)
+}
+
+etterna_data_key!(Scorekey, 'S');
+etterna_data_key!(Chartkey, 'X');

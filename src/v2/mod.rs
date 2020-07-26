@@ -315,13 +315,13 @@ impl Session {
 
 			// println!("{:#?}", json);
 			scores.push(TopScore {
-				scorekey: score_json["id"].as_str().unwrap().to_owned(),
+				scorekey: score_json["id"].scorekey_string()?,
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
 				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
 				wifescore: score_json["attributes"]["wife"].wifescore_percent_float()?,
 				rate: score_json["attributes"]["rate"].rate_float()?,
 				difficulty,
-				chartkey: score_json["attributes"]["chartKey"].as_str().unwrap().to_owned(),
+				chartkey: score_json["attributes"]["chartKey"].chartkey_string()?,
 				base_msd: chart_skillsets_from_eo(&score_json["attributes"]["skillsets"])?,
 			});
 		}
@@ -382,7 +382,7 @@ impl Session {
 		let mut scores = Vec::new();
 		for score_json in json.as_array().unwrap() {
 			scores.push(LatestScore {
-				scorekey: score_json["id"].as_str().unwrap().to_owned(),
+				scorekey: score_json["id"].scorekey_string()?,
 				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
 				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
 				wifescore: score_json["attributes"]["wife"].wifescore_percent_float()?,
@@ -443,8 +443,8 @@ impl Session {
 					song_name: score_json["songname"].as_str().unwrap().to_owned(),
 					rate: score_json["user_chart_rate_rate"].rate_float()?,
 					wifescore: score_json["wifescore"].wifescore_proportion_float()?,
-					chartkey: score_json["chartkey"].as_str().unwrap().to_owned(),
-					scorekey: score_json["scorekey"].as_str().unwrap().to_owned(),
+					chartkey: score_json["chartkey"].chartkey_string()?,
+					scorekey: score_json["scorekey"].scorekey_string()?,
 					difficulty: difficulty_from_eo(score_json["difficulty"].as_str().unwrap())?,
 					ssr: chart_skillsets_from_eo(&score_json)?,
 				})
@@ -469,15 +469,17 @@ impl Session {
 	/// 
 	/// # Errors
 	/// - [`Error::ScoreNotFound`] if the supplied scorekey was not found
+	/// - panics if the passed in scorekey is in an invalid format (only applies if passed in as a
+	///   `&str`, since `&Scorekey` is guaranteed to be valid)
 	/// 
 	/// # Example
 	/// ```
-	/// let score_info = session.score_data("S65565b5bc377c6d78b60c0aecfd9e05955b4cf63")?;
+	/// let score_info = session.score_data(Scorekey::new("S65565b5bc377c6d78b60c0aecfd9e05955b4cf63"))?;
 	/// ```
-	pub fn score_data(&mut self, scorekey: &str) -> Result<ScoreData, Error> {
-		let json = self.get(&format!("score/{}", scorekey))?;
+	pub fn score_data(&mut self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
+		let json = self.get(&format!("score/{}", scorekey.as_ref()))?;
 
-		let scorekey = json["id"].as_str().unwrap().to_owned();
+		let scorekey = json["id"].scorekey_string()?;
 		let json = &json["attributes"];
 
 		Ok(ScoreData {
@@ -510,12 +512,12 @@ impl Session {
 	/// 
 	/// println!("The best Game Time score is being held by {}", leaderboard[0].user.username);
 	/// ```
-	pub fn chart_leaderboard(&mut self, chartkey: &str) -> Result<Vec<ChartLeaderboardScore>, Error> {
-		let json = self.get(&format!("charts/{}/leaderboards", chartkey))?;
+	pub fn chart_leaderboard(&mut self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardScore>, Error> {
+		let json = self.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))?;
 
 		let mut scores = Vec::new();
 		for json in json.as_array().unwrap() {
-			let scorekey = json["id"].as_str().unwrap().to_owned();
+			let scorekey = json["id"].scorekey_string()?;
 			let json = &json["attributes"];
 
 			scores.push(ChartLeaderboardScore {
@@ -613,11 +615,11 @@ impl Session {
 	/// // Favorite Game Time
 	/// session.add_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
 	/// ```
-	pub fn add_user_favorite(&mut self, username: &str, chartkey: &str) -> Result<(), Error> {
+	pub fn add_user_favorite(&mut self, username: &str, chartkey: impl AsRef<str>) -> Result<(), Error> {
 		self.request(
 			"POST",
 			&format!("user/{}/favorites", username),
-			|mut req| req.send_form(&[("chartkey", chartkey)]),
+			|mut req| req.send_form(&[("chartkey", chartkey.as_ref())]),
 		)?;
 
 		Ok(())
@@ -630,10 +632,10 @@ impl Session {
 	/// // Unfavorite Game Time
 	/// session.remove_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
 	/// ```
-	pub fn remove_user_favorite(&mut self, username: &str, chartkey: &str) -> Result<(), Error> {
+	pub fn remove_user_favorite(&mut self, username: &str, chartkey: impl AsRef<str>) -> Result<(), Error> {
 		self.request(
 			"DELETE",
-			&format!("user/{}/favorites/{}", username, chartkey),
+			&format!("user/{}/favorites/{}", username, chartkey.as_ref()),
 			|mut request| request.call()
 		)?;
 
@@ -656,7 +658,7 @@ impl Session {
 		let json = self.get(&format!("user/{}/goals", username))?;
 
 		json.as_array().unwrap().iter().map(|json| Ok(ScoreGoal {
-				chartkey: json["attributes"]["chartkey"].as_str().unwrap().to_owned(),
+				chartkey: json["attributes"]["chartkey"].chartkey_string()?,
 				rate: json["attributes"]["rate"].rate_float()?,
 				wifescore: json["attributes"]["wife"].wifescore_proportion_float()?,
 				time_assigned: json["attributes"]["timeAssigned"].as_str().unwrap().to_owned(),
@@ -689,7 +691,7 @@ impl Session {
 	// TODO: somehow enforce that `time_assigned` is valid ISO 8601
 	pub fn add_user_goal(&mut self,
 		username: &str,
-		chartkey: &str,
+		chartkey: impl AsRef<str>,
 		rate: f64,
 		wifescore: f64,
 		time_assigned: &str,
@@ -698,7 +700,7 @@ impl Session {
 			"POST",
 			&format!("user/{}/goals", username),
 			|mut request| request.send_form(&[
-				("chartkey", chartkey),
+				("chartkey", chartkey.as_ref()),
 				("rate", &format!("{}", rate)),
 				("wife", &format!("{}", wifescore)),
 				("timeAssigned", time_assigned),
@@ -727,7 +729,7 @@ impl Session {
 	/// ```
 	pub fn remove_user_goal(&mut self,
 		username: &str,
-		chartkey: &str,
+		chartkey: impl AsRef<str>,
 		rate: f64,
 		wifescore: f64,
 	) -> Result<(), Error> {
@@ -735,7 +737,7 @@ impl Session {
 		let wifescore = format!("{}", wifescore);
 		self.request(
 			"DELETE",
-			&format!("user/{}/goals/{}/{}/{}", username, chartkey, wifescore, rate),
+			&format!("user/{}/goals/{}/{}/{}", username, chartkey.as_ref(), wifescore, rate),
 			|mut request| request.call(),
 		)?;
 
@@ -759,7 +761,7 @@ impl Session {
 			"POST",
 			&format!("user/{}/goals/update", username),
 			|mut request| request.send_form(&[
-				("chartkey", &goal.chartkey),
+				("chartkey", goal.chartkey.as_ref()),
 				("timeAssigned", &goal.time_assigned),
 				("achieved", if goal.time_achieved.is_some() { "1" } else { "0" }),
 				("rate", &format!("{}", goal.rate)),
