@@ -46,17 +46,16 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 	let json: serde_json::Value = serde_json::from_str(replay_str)
 		.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
 
-	let mut notes = Vec::new();
-	for note_json in json.as_array().unwrap() {
+	let notes = json.array()?.iter().map(|note_json| Ok({
 		let note_json = note_json.as_array().unwrap();
-		notes.push(ReplayNote {
+		ReplayNote {
 			time: note_json[0].f32_()?,
 			deviation: note_json[1].f32_()? / 1000.0,
 			lane: note_json[2].as_i64().unwrap() as u8,
 			note_type: note_type_from_eo(&note_json[3])?,
 			tick: note_json.get(4).map(|x| x.as_i64().unwrap() as u32), // it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
-		});
-	}
+		}
+	})).collect::<Result<Vec<ReplayNote>, Error>>()?;
 
 	Ok(Some(Replay { notes }))
 }

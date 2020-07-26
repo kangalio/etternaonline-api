@@ -309,24 +309,16 @@ impl Session {
 	fn parse_top_scores(&mut self, url: &str) -> Result<Vec<TopScore>, Error> {
 		let json = self.get(url)?;
 
-		let mut scores = Vec::new();
-		for score_json in json.array()? {
-			let difficulty = difficulty_from_eo(score_json["attributes"]["difficulty"].str_()?)?;
-
-			// println!("{:#?}", json);
-			scores.push(TopScore {
-				scorekey: score_json["id"].scorekey_string()?,
-				song_name: score_json["attributes"]["songName"].string()?,
-				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
-				wifescore: score_json["attributes"]["wife"].wifescore_percent_float()?,
-				rate: score_json["attributes"]["rate"].rate_float()?,
-				difficulty,
-				chartkey: score_json["attributes"]["chartKey"].chartkey_string()?,
-				base_msd: chart_skillsets_from_eo(&score_json["attributes"]["skillsets"])?,
-			});
-		}
-
-		Ok(scores)
+		json.array()?.iter().map(|json| Ok(TopScore {
+			scorekey: json["id"].scorekey_string()?,
+			song_name: json["attributes"]["songName"].string()?,
+			ssr_overall: json["attributes"]["Overall"].f32_()?,
+			wifescore: json["attributes"]["wife"].wifescore_percent_float()?,
+			rate: json["attributes"]["rate"].rate_float()?,
+			difficulty: json["attributes"]["difficulty"].difficulty_string()?,
+			chartkey: json["attributes"]["chartKey"].chartkey_string()?,
+			base_msd: chart_skillsets_from_eo(&json["attributes"]["skillsets"])?,
+		})).collect()
 	}
 
 	/// Retrieve the user's top scores by the given skillset. The number of scores returned is equal
@@ -379,19 +371,14 @@ impl Session {
 	pub fn user_latest_scores(&mut self, username: &str) -> Result<Vec<LatestScore>, Error> {
 		let json = self.get(&format!("user/{}/latest", username))?;
 
-		let mut scores = Vec::new();
-		for score_json in json.array()? {
-			scores.push(LatestScore {
-				scorekey: score_json["id"].scorekey_string()?,
-				song_name: score_json["attributes"]["songName"].string()?,
-				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
-				wifescore: score_json["attributes"]["wife"].wifescore_percent_float()?,
-				rate: score_json["attributes"]["rate"].rate_float()?,
-				difficulty: difficulty_from_eo(score_json["attributes"]["difficulty"].str_()?)?,
-			});
-		}
-
-		Ok(scores)
+		json.array()?.iter().map(|json| Ok(LatestScore {
+			scorekey: json["id"].scorekey_string()?,
+			song_name: json["attributes"]["songName"].string()?,
+			ssr_overall: json["attributes"]["Overall"].f32_()?,
+			wifescore: json["attributes"]["wife"].wifescore_percent_float()?,
+			rate: json["attributes"]["rate"].rate_float()?,
+			difficulty: difficulty_from_eo(json["attributes"]["difficulty"].str_()?)?,
+		})).collect()
 	}
 
 	/// Retrieve the user's rank for each skillset.
@@ -437,20 +424,15 @@ impl Session {
 		let json = self.get(&format!("user/{}/all", username))?;
 
 		let parse_skillset_top_scores = |array: &serde_json::Value| -> Result<Vec<_>, Error> {
-			let mut scores = Vec::new();
-			for score_json in array.array()? {
-				scores.push(TopScorePerSkillset {
-					song_name: score_json["songname"].string()?,
-					rate: score_json["user_chart_rate_rate"].rate_float()?,
-					wifescore: score_json["wifescore"].wifescore_proportion_float()?,
-					chartkey: score_json["chartkey"].chartkey_string()?,
-					scorekey: score_json["scorekey"].scorekey_string()?,
-					difficulty: difficulty_from_eo(score_json["difficulty"].str_()?)?,
-					ssr: chart_skillsets_from_eo(&score_json)?,
-				})
-			}
-
-			Ok(scores)
+			array.array()?.iter().map(|json| Ok(TopScorePerSkillset {
+				song_name: json["songname"].string()?,
+				rate: json["user_chart_rate_rate"].rate_float()?,
+				wifescore: json["wifescore"].wifescore_proportion_float()?,
+				chartkey: json["chartkey"].chartkey_string()?,
+				scorekey: json["scorekey"].scorekey_string()?,
+				difficulty: difficulty_from_eo(json["difficulty"].str_()?)?,
+				ssr: chart_skillsets_from_eo(&json)?,
+			})).collect()
 		};
 
 		Ok(UserTopScoresPerSkillset {
@@ -515,28 +497,20 @@ impl Session {
 	pub fn chart_leaderboard(&mut self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardScore>, Error> {
 		let json = self.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))?;
 
-		let mut scores = Vec::new();
-		for json in json.array()? {
-			let scorekey = json["id"].scorekey_string()?;
-			let json = &json["attributes"];
-
-			scores.push(ChartLeaderboardScore {
-				scorekey,
-				wifescore: json["wife"].wifescore_percent_float()?,
-				max_combo: json["maxCombo"].u32_()?,
-				is_valid: json["valid"].bool_()?,
-				modifiers: json["modifiers"].string()?,
-				has_chord_cohesion: !json["noCC"].bool_()?,
-				rate: json["rate"].rate_float()?,
-				datetime: json["datetime"].string()?,
-				ssr: chart_skillsets_from_eo(&json["skillsets"])?,
-				judgements: parse_judgements(&json["judgements"])?,
-				has_replay: json["hasReplay"].bool_()?, // API docs are wrong again
-				user: parse_score_data_user_1(&json["user"])?,
-			});
-		}
-
-		Ok(scores)
+		json.array()?.iter().map(|json| Ok(ChartLeaderboardScore {
+			scorekey: json["id"].scorekey_string()?,
+			wifescore: json["attributes"]["wife"].wifescore_percent_float()?,
+			max_combo: json["attributes"]["maxCombo"].u32_()?,
+			is_valid: json["attributes"]["valid"].bool_()?,
+			modifiers: json["attributes"]["modifiers"].string()?,
+			has_chord_cohesion: !json["attributes"]["noCC"].bool_()?,
+			rate: json["attributes"]["rate"].rate_float()?,
+			datetime: json["attributes"]["datetime"].string()?,
+			ssr: chart_skillsets_from_eo(&json["attributes"]["skillsets"])?,
+			judgements: parse_judgements(&json["attributes"]["judgements"])?,
+			has_replay: json["attributes"]["hasReplay"].bool_()?, // API docs are wrong again
+			user: parse_score_data_user_1(&json["attributes"]["user"])?,
+		})).collect()
 	}
 
 	/// Retrieves the player leaderboard for the given country.
@@ -557,15 +531,10 @@ impl Session {
 	pub fn country_leaderboard(&mut self, country_code: &str) -> Result<Vec<LeaderboardEntry>, Error> {
 		let json = self.get(&format!("leaderboard/{}", country_code))?;
 
-		let mut entries = Vec::new();
-		for json in json.array()? {
-			entries.push(LeaderboardEntry {
-				user: parse_score_data_user_2(&json["attributes"]["user"])?,
-				rating: user_skillsets_from_eo(&json["attributes"]["skillsets"])?,
-			});
-		}
-
-		Ok(entries)
+		json.array()?.iter().map(|json| Ok(LeaderboardEntry {
+			user: parse_score_data_user_2(&json["attributes"]["user"])?,
+			rating: user_skillsets_from_eo(&json["attributes"]["skillsets"])?,
+		})).collect()
 	}
 
 	/// Retrieves the worldwide leaderboard of players.
