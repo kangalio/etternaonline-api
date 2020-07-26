@@ -77,6 +77,20 @@ pub(crate) trait JsonValueExt: Sized {
 			.idk("array", self.get())
 	}
 
+	fn bool_(&self) -> Result<bool, Error> {
+		self.get().as_bool()
+			.idk("boolean", self.get())
+	}
+
+	fn bool_int(&self) -> Result<bool, Error> {
+		(|| match self.get().as_i64()? {
+			0 => Some(false),
+			1 => Some(true),
+			_ => None,
+		})()
+			.idk("0 or 1", self.get())
+	}
+
 	fn bool_int_string(&self) -> Result<bool, Error> {
 		(|| match self.get().as_str()? {
 			"0" => Some(false),

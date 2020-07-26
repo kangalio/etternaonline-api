@@ -40,35 +40,35 @@ fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<UserSkillsets, Err
 	})
 }
 
-fn parse_judgements(json: &serde_json::Value) -> Judgements {
-	Judgements {
-		marvelouses: json["marvelous"].as_i64().unwrap() as u32,
-		perfects: json["perfect"].as_i64().unwrap() as u32,
-		greats: json["great"].as_i64().unwrap() as u32,
-		goods: json["good"].as_i64().unwrap() as u32,
-		bads: json["bad"].as_i64().unwrap() as u32,
-		misses: json["miss"].as_i64().unwrap() as u32,
-		hit_mines: json["hitMines"].as_i64().unwrap() as u32,
-		held_holds: json["heldHold"].as_i64().unwrap() as u32,
-		let_go_holds: json["letGoHold"].as_i64().unwrap() as u32,
-		missed_holds: json["missedHold"].as_i64().unwrap() as u32,
-	}
+fn parse_judgements(json: &serde_json::Value) -> Result<Judgements, Error> {
+	Ok(Judgements {
+		marvelouses: json["marvelous"].u32_()?,
+		perfects: json["perfect"].u32_()?,
+		greats: json["great"].u32_()?,
+		goods: json["good"].u32_()?,
+		bads: json["bad"].u32_()?,
+		misses: json["miss"].u32_()?,
+		hit_mines: json["hitMines"].u32_()?,
+		held_holds: json["heldHold"].u32_()?,
+		let_go_holds: json["letGoHold"].u32_()?,
+		missed_holds: json["missedHold"].u32_()?,
+	})
 }
 
 fn parse_score_data_user_1(json: &serde_json::Value) -> Result<ScoreUser, Error> {
 	Ok(ScoreUser {
-		username: json["userName"].as_str().unwrap().to_owned(),
-		avatar: json["avatar"].as_str().unwrap().to_owned(),
-		country_code: json["countryCode"].as_str().unwrap().to_owned(),
+		username: json["userName"].string()?,
+		avatar: json["avatar"].string()?,
+		country_code: json["countryCode"].string()?,
 		overall_rating: json["playerRating"].f32_()?,
 	})
 }
 
 fn parse_score_data_user_2(json: &serde_json::Value) -> Result<ScoreUser, Error> {
 	Ok(ScoreUser {
-		username: json["username"].as_str().unwrap().to_owned(),
-		avatar: json["avatar"].as_str().unwrap().to_owned(),
-		country_code: json["countryCode"].as_str().unwrap().to_owned(),
+		username: json["username"].string()?,
+		avatar: json["avatar"].string()?,
+		country_code: json["countryCode"].string()?,
 		overall_rating: json["Overall"].f32_()?,
 	})
 }
@@ -179,10 +179,10 @@ impl Session {
 
 		self.authorization = format!(
 			"Bearer {}",
-			json["attributes"]["accessToken"].as_str().unwrap(),
+			json["attributes"]["accessToken"].str_()?,
 		);
 
-		Ok(json["attributes"]["expiresAt"].as_i64().unwrap() as u64)
+		Ok(json["attributes"]["expiresAt"].u64_()?)
 	}
 
 	fn generic_request(&mut self,
@@ -237,7 +237,7 @@ impl Session {
 				return Err(Error::ServerIsDown);
 			}
 
-			return match json["errors"][0]["title"].as_str().unwrap() {
+			return match json["errors"][0]["title"].str_()? {
 				"Unauthorized" => {
 					// Token expired, let's login again and retry
 					self.login()?;
@@ -291,14 +291,14 @@ impl Session {
 		let json = &json["attributes"];
 
 		Ok(UserDetails {
-			username: json["userName"].as_str().unwrap().to_owned(),
-			about_me: json["aboutMe"].as_str().unwrap().to_owned(),
-			is_moderator: json["moderator"].as_bool().unwrap(),
-			is_patreon: json["patreon"].as_bool().unwrap(),
-			avatar_url: json["avatar"].as_str().unwrap().to_owned(),
-			country_code: json["countryCode"].as_str().unwrap().to_owned(),
+			username: json["userName"].string()?,
+			about_me: json["aboutMe"].string()?,
+			is_moderator: json["moderator"].bool_()?,
+			is_patreon: json["patreon"].bool_()?,
+			avatar_url: json["avatar"].string()?,
+			country_code: json["countryCode"].string()?,
 			player_rating: json["playerRating"].f32_()?,
-			default_modifiers: match json["defaultModifiers"].as_str().unwrap() {
+			default_modifiers: match json["defaultModifiers"].str_()? {
 				"" => None,
 				modifiers => Some(modifiers.to_owned()),
 			},
@@ -310,13 +310,13 @@ impl Session {
 		let json = self.get(url)?;
 
 		let mut scores = Vec::new();
-		for score_json in json.as_array().unwrap() {
-			let difficulty = difficulty_from_eo(score_json["attributes"]["difficulty"].as_str().unwrap())?;
+		for score_json in json.array()? {
+			let difficulty = difficulty_from_eo(score_json["attributes"]["difficulty"].str_()?)?;
 
 			// println!("{:#?}", json);
 			scores.push(TopScore {
 				scorekey: score_json["id"].scorekey_string()?,
-				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
+				song_name: score_json["attributes"]["songName"].string()?,
 				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
 				wifescore: score_json["attributes"]["wife"].wifescore_percent_float()?,
 				rate: score_json["attributes"]["rate"].rate_float()?,
@@ -380,14 +380,14 @@ impl Session {
 		let json = self.get(&format!("user/{}/latest", username))?;
 
 		let mut scores = Vec::new();
-		for score_json in json.as_array().unwrap() {
+		for score_json in json.array()? {
 			scores.push(LatestScore {
 				scorekey: score_json["id"].scorekey_string()?,
-				song_name: score_json["attributes"]["songName"].as_str().unwrap().to_owned(),
+				song_name: score_json["attributes"]["songName"].string()?,
 				ssr_overall: score_json["attributes"]["Overall"].f32_()?,
 				wifescore: score_json["attributes"]["wife"].wifescore_percent_float()?,
 				rate: score_json["attributes"]["rate"].rate_float()?,
-				difficulty: difficulty_from_eo(score_json["attributes"]["difficulty"].as_str().unwrap())?,
+				difficulty: difficulty_from_eo(score_json["attributes"]["difficulty"].str_()?)?,
 			});
 		}
 
@@ -409,14 +409,14 @@ impl Session {
 		let json = &json["attributes"];
 
 		Ok(UserRank {
-			overall: json["Overall"].as_i64().unwrap() as u32,
-			stream: json["Stream"].as_i64().unwrap() as u32,
-			jumpstream: json["Jumpstream"].as_i64().unwrap() as u32,
-			handstream: json["Handstream"].as_i64().unwrap() as u32,
-			stamina: json["Stamina"].as_i64().unwrap() as u32,
-			jackspeed: json["JackSpeed"].as_i64().unwrap() as u32,
-			chordjack: json["Chordjack"].as_i64().unwrap() as u32,
-			technical: json["Technical"].as_i64().unwrap() as u32,
+			overall: json["Overall"].u32_()?,
+			stream: json["Stream"].u32_()?,
+			jumpstream: json["Jumpstream"].u32_()?,
+			handstream: json["Handstream"].u32_()?,
+			stamina: json["Stamina"].u32_()?,
+			jackspeed: json["JackSpeed"].u32_()?,
+			chordjack: json["Chordjack"].u32_()?,
+			technical: json["Technical"].u32_()?,
 		})
 	}
 
@@ -438,14 +438,14 @@ impl Session {
 
 		let parse_skillset_top_scores = |array: &serde_json::Value| -> Result<Vec<_>, Error> {
 			let mut scores = Vec::new();
-			for score_json in array.as_array().unwrap() {
+			for score_json in array.array()? {
 				scores.push(TopScorePerSkillset {
-					song_name: score_json["songname"].as_str().unwrap().to_owned(),
+					song_name: score_json["songname"].string()?,
 					rate: score_json["user_chart_rate_rate"].rate_float()?,
 					wifescore: score_json["wifescore"].wifescore_proportion_float()?,
 					chartkey: score_json["chartkey"].chartkey_string()?,
 					scorekey: score_json["scorekey"].scorekey_string()?,
-					difficulty: difficulty_from_eo(score_json["difficulty"].as_str().unwrap())?,
+					difficulty: difficulty_from_eo(score_json["difficulty"].str_()?)?,
 					ssr: chart_skillsets_from_eo(&score_json)?,
 				})
 			}
@@ -484,17 +484,17 @@ impl Session {
 
 		Ok(ScoreData {
 			scorekey,
-			modifiers: json["modifiers"].as_str().unwrap().to_owned(),
+			modifiers: json["modifiers"].string()?,
 			wifescore: json["wife"].wifescore_proportion_float()?,
 			rate: json["rate"].rate_float()?,
-			max_combo: json["maxCombo"].as_i64().unwrap() as u32,
-			is_valid: json["valid"].as_bool().unwrap(),
-			has_chord_cohesion: !json["nocc"].as_bool().unwrap(),
-			song_name: json["song"]["songName"].as_str().unwrap().to_owned(),
-			artist: json["song"]["artist"].as_str().unwrap().to_owned(),
-			song_id: json["song"]["id"].as_i64().unwrap() as u32,
+			max_combo: json["maxCombo"].u32_()?,
+			is_valid: json["valid"].bool_()?,
+			has_chord_cohesion: !json["nocc"].bool_()?,
+			song_name: json["song"]["songName"].string()?,
+			artist: json["song"]["artist"].string()?,
+			song_id: json["song"]["id"].u32_()?,
 			ssr: chart_skillsets_from_eo(&json["skillsets"])?,
-			judgements: parse_judgements(&json["judgements"]),
+			judgements: parse_judgements(&json["judgements"])?,
 			replay: crate::common::parse_replay(&json["replay"])?,
 			user: parse_score_data_user_2(&json["user"])?,
 		})
@@ -516,22 +516,22 @@ impl Session {
 		let json = self.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))?;
 
 		let mut scores = Vec::new();
-		for json in json.as_array().unwrap() {
+		for json in json.array()? {
 			let scorekey = json["id"].scorekey_string()?;
 			let json = &json["attributes"];
 
 			scores.push(ChartLeaderboardScore {
 				scorekey,
 				wifescore: json["wife"].wifescore_percent_float()?,
-				max_combo: json["maxCombo"].as_i64().unwrap() as u32,
-				is_valid: json["valid"].as_bool().unwrap(),
-				modifiers: json["modifiers"].as_str().unwrap().to_owned(),
-				has_chord_cohesion: !json["noCC"].as_bool().unwrap(),
+				max_combo: json["maxCombo"].u32_()?,
+				is_valid: json["valid"].bool_()?,
+				modifiers: json["modifiers"].string()?,
+				has_chord_cohesion: !json["noCC"].bool_()?,
 				rate: json["rate"].rate_float()?,
-				datetime: json["datetime"].as_str().unwrap().to_owned(),
+				datetime: json["datetime"].string()?,
 				ssr: chart_skillsets_from_eo(&json["skillsets"])?,
-				judgements: parse_judgements(&json["judgements"]),
-				has_replay: json["hasReplay"].as_bool().unwrap(), // API docs are wrong again
+				judgements: parse_judgements(&json["judgements"])?,
+				has_replay: json["hasReplay"].bool_()?, // API docs are wrong again
 				user: parse_score_data_user_1(&json["user"])?,
 			});
 		}
@@ -558,7 +558,7 @@ impl Session {
 		let json = self.get(&format!("leaderboard/{}", country_code))?;
 
 		let mut entries = Vec::new();
-		for json in json.as_array().unwrap() {
+		for json in json.array()? {
 			entries.push(LeaderboardEntry {
 				user: parse_score_data_user_2(&json["attributes"]["user"])?,
 				rating: user_skillsets_from_eo(&json["attributes"]["skillsets"])?,
@@ -597,11 +597,9 @@ impl Session {
 	pub fn user_favorites(&mut self, username: &str) -> Result<Vec<String>, Error> {
 		let json = self.get(&format!("user/{}/favorites", username))?;
 
-		let chartkeys: Vec<String> = json.as_array().unwrap().iter()
-			.map(|obj| obj["attributes"]["chartkey"].as_str().unwrap().to_owned())
-			.collect();
-
-		Ok(chartkeys)
+		json.array()?.iter().map(|obj| Ok(
+			obj["attributes"]["chartkey"].string()?
+		)).collect()
 	}
 
 	/// Add a chart to the user's favorites.
@@ -657,15 +655,15 @@ impl Session {
 	pub fn user_goals(&mut self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
 		let json = self.get(&format!("user/{}/goals", username))?;
 
-		json.as_array().unwrap().iter().map(|json| Ok(ScoreGoal {
+		json.array()?.iter().map(|json| Ok(ScoreGoal {
 				chartkey: json["attributes"]["chartkey"].chartkey_string()?,
 				rate: json["attributes"]["rate"].rate_float()?,
 				wifescore: json["attributes"]["wife"].wifescore_proportion_float()?,
-				time_assigned: json["attributes"]["timeAssigned"].as_str().unwrap().to_owned(),
-				time_achieved: if json["attributes"]["achieved"].as_i64().unwrap() == 0 {
-					None
+				time_assigned: json["attributes"]["timeAssigned"].string()?,
+				time_achieved: if json["attributes"]["achieved"].bool_int()? {
+					Some(json["attributes"]["timeAchieved"].string()?)
 				} else {
-					Some(json["attributes"]["timeAchieved"].as_str().unwrap().to_owned())
+					None
 				}
 		})).collect()
 	}

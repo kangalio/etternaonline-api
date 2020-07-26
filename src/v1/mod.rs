@@ -120,7 +120,7 @@ impl Session {
 			charts: json["charts"].array()?.iter().map(|json| Ok(SongChartData {
 				chartkey: json["chartkey"].chartkey_string()?,
 				msd: json["msd"].f32_string()?,
-				difficulty: crate::Difficulty::from_long_string(json["difficulty"].str_()?).json_unwrap()?,
+				difficulty: json["difficulty"].difficulty_string()?,
 				is_blacklisted: json["blacklisted"].bool_int_string()?,
 				leaderboard: json["leaderboard"].array()?.iter().map(|json| Ok(SongChartLeaderboardEntry {
 					username: json["username"].string()?,
