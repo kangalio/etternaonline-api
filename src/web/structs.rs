@@ -45,3 +45,23 @@ pub struct UserScore {
 	pub date: String,
 	pub has_chord_cohesion: bool,
 }
+
+// I should, like, add more things to this...
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct UserDetails {
+	pub user_id: u32,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum UserScoresSortBy {
+	SongName, Rate, SsrOverall, Wifescore, NerfedWifescore, Date,
+	Stream, Jumpstream, Handstream, Stamina, Jacks, Chordjacks, Technical,
+	ChordCohesion, Scorekey,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum SortDirection {
+	Descending, Ascending,
+}

@@ -372,10 +372,10 @@ impl Session {
 
 	fn generic_leaderboard(&mut self,
 		params: &[(&str, &str)]
-	) -> Result<Vec<CountryLeaderboardEntry>, Error> {
+	) -> Result<Vec<LeaderboardEntry>, Error> {
 		let json = self.request("leaderboard", params)?;
 
-		json.array()?.iter().map(|json| Ok(CountryLeaderboardEntry {
+		json.array()?.iter().map(|json| Ok(LeaderboardEntry {
 			username: json["username"].string()?,
 			avatar: json["avatar"].string()?,
 			rating: user_skillsets_from_eo(json)?,
@@ -400,7 +400,7 @@ impl Session {
 	/// ```
 	pub fn country_leaderboard(&mut self,
 		country_code: &str,
-	) -> Result<Vec<CountryLeaderboardEntry>, Error> {
+	) -> Result<Vec<LeaderboardEntry>, Error> {
 		self.generic_leaderboard(&[("cc", country_code)])
 	}
 
@@ -416,7 +416,7 @@ impl Session {
 	/// 	leaderboard[0].rating.overall(),
 	/// );
 	/// ```
-	pub fn global_leaderboard(&mut self) -> Result<Vec<CountryLeaderboardEntry>, Error> {
+	pub fn global_leaderboard(&mut self) -> Result<Vec<LeaderboardEntry>, Error> {
 		self.generic_leaderboard(&[])
 	}
 

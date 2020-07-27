@@ -68,7 +68,7 @@ impl Session {
 	) -> Self {
 		Self {
 			request_cooldown, timeout,
-			last_request: std::time::Instant::now(), // this's not really true but oh well
+			last_request: std::time::Instant::now() - request_cooldown,
 		}
 	}
 
@@ -183,6 +183,8 @@ impl Session {
 	pub fn user_scores(&mut self,
 		user_id: u32,
 		range_to_retrieve: impl EoRange,
+		sort_criterium: UserScoresSortBy,
+		sort_direction: SortDirection,
 	) -> Result<Vec<UserScore>, Error> {
 		let start = range_to_retrieve.start_int();
 		let length = match range_to_retrieve.length_int() {
@@ -190,13 +192,32 @@ impl Session {
 			None => return Ok(vec![]),
 		};
 
-		let json = self.request("POST", "score/userScores", |mut r| r
-			.send_form(&[
-				("start", &start.to_string()),
-				("length", &length.to_string()),
-				("userid", &user_id.to_string()),
-			])
-		)?.into_json()?;
+		let json = self.request("POST", "score/userScores", |mut r| r.send_form(&[
+			("start", &start.to_string()),
+			("length", &length.to_string()),
+			("userid", &user_id.to_string()),
+			("order[0][dir]", match sort_direction {
+				SortDirection::Ascending => "asc",
+				SortDirection::Descending => "desc",
+			}),
+			("order[0][column]", match sort_criterium {
+				UserScoresSortBy::SongName => "0",
+				UserScoresSortBy::Rate => "1",
+				UserScoresSortBy::SsrOverall => "2",
+				UserScoresSortBy::Wifescore => "3",
+				UserScoresSortBy::NerfedWifescore => "4",
+				UserScoresSortBy::Date => "5",
+				UserScoresSortBy::Stream => "6",
+				UserScoresSortBy::Jumpstream => "7",
+				UserScoresSortBy::Handstream => "8",
+				UserScoresSortBy::Stamina => "9",
+				UserScoresSortBy::Jacks => "10",
+				UserScoresSortBy::Chordjacks => "11",
+				UserScoresSortBy::Technical => "12",
+				UserScoresSortBy::ChordCohesion => "13",
+				UserScoresSortBy::Scorekey => "",
+			})
+		]))?.into_json()?;
 
 		json["data"].array()?.iter().map(|json| Ok(UserScore {
 			song_name: json["songname"].attempt_get("song name", |j| Some(j
@@ -253,5 +274,15 @@ impl Session {
 				_ => None,
 			})?,
 		})).collect()
+	}
+
+	pub fn user_details(&mut self, username: &str) -> Result<UserDetails, Error> {
+		let response = self.request("GET", &format!("user/{}", username), |mut r| r.call())?;
+		let response = response.into_string()?;
+
+		Ok(UserDetails {
+			user_id: (|| response.as_str().extract("'userid': '", "'")?.parse().ok())()
+				.ok_or_else(|| Error::UnexpectedResponse("No userid found in user page".to_owned()))?,
+		})
 	}
 }

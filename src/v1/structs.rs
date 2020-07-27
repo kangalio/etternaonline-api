@@ -109,7 +109,7 @@ pub struct TopScore {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CountryLeaderboardEntry {
+pub struct LeaderboardEntry {
 	pub username: String,
 	pub avatar: String,
 	pub rating: UserSkillsets,
