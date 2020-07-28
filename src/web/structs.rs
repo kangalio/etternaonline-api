@@ -37,14 +37,21 @@ pub struct UserScore {
 	pub song_name: String,
 	pub song_id: u32,
 	pub scorekey: Scorekey,
-	pub user_id: u32,
+	pub user_id_and_ssr: Option<ValidUserScoreInfo>,
 	pub rate: Rate,
-	pub ssr: ChartSkillsets,
-	pub ssr_overall_nerfed: f32,
 	pub wifescore: Wifescore,
 	pub judgements: TapJudgements,
 	pub date: String,
 	pub has_chord_cohesion: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+// The part of a [`UserScore`] that is only present if the score is valid
+pub struct ValidUserScoreInfo {
+	pub user_id: u32,
+	pub ssr: ChartSkillsets,
+	pub ssr_overall_nerfed: f32,
 }
 
 // I should, like, add more things to this...

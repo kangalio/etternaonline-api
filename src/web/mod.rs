@@ -231,23 +231,7 @@ impl Session {
 				.parse().ok()?
 			))?,
 			scorekey: json["scorekey"].scorekey_string()?,
-			user_id: json["Overall"].attempt_get("user id", |j| Some(j
-				.as_str()?
-				.extract("score/view/", "\"")?
-				[41..]
-				.parse().ok()?
-			))?,
 			rate: json["user_chart_rate_rate"].rate_string()?,
-			ssr: etterna::ChartSkillsets {
-				stream: json["stream"].f32_string()?,
-				jumpstream: json["jumpstream"].f32_string()?,
-				handstream: json["handstream"].f32_string()?,
-				stamina: json["stamina"].f32_string()?,
-				jackspeed: json["jackspeed"].f32_string()?,
-				chordjack: json["chordjack"].f32_string()?,
-				technical: json["technical"].f32_string()?,
-			},
-			ssr_overall_nerfed: json["Nerf"].f32_()?,
 			wifescore: json["wifescore"].attempt_get("wifescore", |j| Some(
 				etterna::Wifescore::from_percent(j
 					.as_str()?
@@ -273,6 +257,28 @@ impl Session {
 				"Off" => Some(false),
 				_ => None,
 			})?,
+			user_id_and_ssr: if json["Overall"].str_()?.contains("Invalid Score") {
+				None
+			} else {
+				Some(ValidUserScoreInfo {
+					user_id: json["Overall"].attempt_get("user id", |j| Some(j
+						.as_str()?
+						.extract("score/view/", "\"")?
+						[41..]
+						.parse().ok()?
+					))?,
+					ssr: etterna::ChartSkillsets {
+						stream: json["stream"].f32_string()?,
+						jumpstream: json["jumpstream"].f32_string()?,
+						handstream: json["handstream"].f32_string()?,
+						stamina: json["stamina"].f32_string()?,
+						jackspeed: json["jackspeed"].f32_string()?,
+						chordjack: json["chordjack"].f32_string()?,
+						technical: json["technical"].f32_string()?,
+					},
+					ssr_overall_nerfed: json["Nerf"].f32_()?,
+				})
+			}
 		})).collect()
 	}
 
