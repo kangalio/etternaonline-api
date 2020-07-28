@@ -167,7 +167,7 @@ impl Session {
 				avatar: user_string
 					.extract("/avatars/", "\"").json_unwrap()?
 					.to_owned(),
-				rating: UserSkillsets {
+				rating: etterna::UserSkillsets {
 					stamina: json["Stamina"].f32_()?,
 					stream: json["Stream"].f32_()?,
 					jumpstream: json["Jumpstream"].f32_()?,
@@ -238,7 +238,7 @@ impl Session {
 				.parse().ok()?
 			))?,
 			rate: json["user_chart_rate_rate"].rate_string()?,
-			ssr: ChartSkillsets {
+			ssr: etterna::ChartSkillsets {
 				stream: json["stream"].f32_string()?,
 				jumpstream: json["jumpstream"].f32_string()?,
 				handstream: json["handstream"].f32_string()?,
@@ -249,7 +249,7 @@ impl Session {
 			},
 			ssr_overall_nerfed: json["Nerf"].f32_()?,
 			wifescore: json["wifescore"].attempt_get("wifescore", |j| Some(
-				Wifescore::from_percent(j
+				etterna::Wifescore::from_percent(j
 					.as_str()?
 					.extract("<span class=", "</span>")?
 					.extract(">", "%")?
@@ -258,7 +258,7 @@ impl Session {
 			))?,
 			judgements: json["wifescore"].attempt_get("judgements", |j| {
 				let string = j.as_str()?;
-				Some(TapJudgements {
+				Some(etterna::TapJudgements {
 					marvelouses: string.extract("Marvelous: ", "<br")?.parse().ok()?,
 					perfects: string.extract("Perfect: ", "<br")?.parse().ok()?,
 					greats: string.extract("Great: ", "<br")?.parse().ok()?,

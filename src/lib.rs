@@ -84,29 +84,6 @@ impl From<std::io::Error> for Error {
     }
 }
 
-// this needs to be here for some reason, and it also needs to be publically accessible because MACROS
-#[doc(hidden)]
-#[macro_export]
-macro_rules! impl_get8 {
-	($struct_type:ty, $return_type:ty, $self_:ident, $overall_getter:expr) => {
-		impl $struct_type {
-			pub fn get(&self, skillset: impl Into<Skillset8>) -> $return_type {
-				let $self_ = self;
-				match skillset.into() {
-					Skillset8::Overall => $overall_getter,
-					Skillset8::Stream => self.stream,
-					Skillset8::Jumpstream => self.jumpstream,
-					Skillset8::Handstream => self.handstream,
-					Skillset8::Stamina => self.stamina,
-					Skillset8::Jackspeed => self.jackspeed,
-					Skillset8::Chordjack => self.chordjack,
-					Skillset8::Technical => self.technical,
-				}
-			}
-		}
-	}
-}
-
 fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time::Duration) {
 	let now = std::time::Instant::now();
 	let time_since_last_request = now.duration_since(*last_request);
@@ -114,4 +91,44 @@ fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time
 		std::thread::sleep(request_cooldown - time_since_last_request);
 	}
 	*last_request = now;
+}
+
+// This only works with 4k replays at the moment! All notes beyond the first four columns are
+// discarded
+pub fn rescore<S, W>(
+	replay: &Replay,
+	num_hit_mines: u32,
+	num_dropped_holds: u32
+) -> etterna::Wifescore
+where
+	S: etterna::ScoringSystem,
+	W: etterna::Wife,
+{
+	let mut note_seconds_columns = [vec![], vec![], vec![], vec![]];
+	// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THESE VECTORS!!
+	let mut hit_seconds_columns = [vec![], vec![], vec![], vec![]];
+
+	for hit in replay.notes.iter() {
+		if hit.lane >= 4 { continue }
+
+		if !(hit.note_type == etterna::NoteType::Tap || hit.note_type == etterna::NoteType::HoldHead) {
+			continue;
+		}
+
+		note_seconds_columns[hit.lane as usize].push(hit.time - hit.deviation);
+		if !hit.is_miss() {
+			hit_seconds_columns[hit.lane as usize].push(hit.time);
+		}
+	}
+
+	let sort = |slice: &mut [f32]| slice.sort_by(|a, b| a.partial_cmp(b).unwrap());
+	for column in &mut note_seconds_columns { sort(column); }
+	for column in &mut hit_seconds_columns { sort(column); }
+
+	etterna::rescore::<S, W>(
+		&note_seconds_columns,
+		&hit_seconds_columns,
+		num_hit_mines,
+		num_dropped_holds,
+	)
 }

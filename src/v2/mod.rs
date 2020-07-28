@@ -4,7 +4,7 @@ pub use structs::*;
 use crate::Error;
 use crate::extension_traits::*;
 
-fn difficulty_from_eo(string: &str) -> Result<Difficulty, Error> {
+fn difficulty_from_eo(string: &str) -> Result<etterna::Difficulty, Error> {
 	Ok(match string {
 		"Beginner" => Difficulty::Beginner,
 		"Easy" => Difficulty::Easy,
@@ -16,8 +16,8 @@ fn difficulty_from_eo(string: &str) -> Result<Difficulty, Error> {
 	})
 }
 
-fn chart_skillsets_from_eo(json: &serde_json::Value) -> Result<ChartSkillsets, Error> {
-	Ok(ChartSkillsets {
+fn chart_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::ChartSkillsets, Error> {
+	Ok(etterna::ChartSkillsets {
 		stream: json["Stream"].f32_()?,
 		jumpstream: json["Jumpstream"].f32_()?,
 		handstream: json["Handstream"].f32_()?,
@@ -28,8 +28,8 @@ fn chart_skillsets_from_eo(json: &serde_json::Value) -> Result<ChartSkillsets, E
 	})
 }
 
-fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<UserSkillsets, Error> {
-	Ok(UserSkillsets {
+fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::UserSkillsets, Error> {
+	Ok(etterna::UserSkillsets {
 		stream: json["Stream"].f32_()?,
 		jumpstream: json["Jumpstream"].f32_()?,
 		handstream: json["Handstream"].f32_()?,
@@ -40,8 +40,8 @@ fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<UserSkillsets, Err
 	})
 }
 
-fn parse_judgements(json: &serde_json::Value) -> Result<FullJudgements, Error> {
-	Ok(FullJudgements {
+fn parse_judgements(json: &serde_json::Value) -> Result<etterna::FullJudgements, Error> {
+	Ok(etterna::FullJudgements {
 		marvelouses: json["marvelous"].u32_()?,
 		perfects: json["perfect"].u32_()?,
 		greats: json["great"].u32_()?,
@@ -334,7 +334,7 @@ impl Session {
 	/// ```
 	pub fn user_top_skillset_scores(&mut self,
 		username: &str,
-		skillset: Skillset7,
+		skillset: etterna::Skillset7,
 		limit: u32,
 	) -> Result<Vec<TopScore>, Error> {
 		self.parse_top_scores(&format!(
@@ -391,11 +391,11 @@ impl Session {
 	/// // Retrieve "kangalioo"'s rank for each skillset
 	/// let scores = session.user_ranks("kangalioo")?;
 	/// ```
-	pub fn user_ranks_per_skillset(&mut self, username: &str) -> Result<UserRank, Error> {
+	pub fn user_ranks_per_skillset(&mut self, username: &str) -> Result<etterna::UserRank, Error> {
 		let json = self.get(&format!("user/{}/ranks", username))?;
 		let json = &json["attributes"];
 
-		Ok(UserRank {
+		Ok(etterna::UserRank {
 			overall: json["Overall"].u32_()?,
 			stream: json["Stream"].u32_()?,
 			jumpstream: json["Jumpstream"].u32_()?,

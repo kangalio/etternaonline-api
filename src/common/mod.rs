@@ -1,10 +1,10 @@
-pub(crate) mod structs;
-pub use structs::*;
+pub mod structs;
+use structs::*;
 
 use crate::Error;
 use crate::extension_traits::*;
 
-pub(crate) fn note_type_from_eo(note_type: &serde_json::Value) -> Result<NoteType, Error> {
+pub(crate) fn note_type_from_eo(note_type: &serde_json::Value) -> Result<etterna::NoteType, Error> {
 	match note_type.u32_()? {
 		1 => Ok(NoteType::Tap),
 		2 => Ok(NoteType::HoldHead),
@@ -17,7 +17,7 @@ pub(crate) fn note_type_from_eo(note_type: &serde_json::Value) -> Result<NoteTyp
 	}
 }
 
-pub(crate) fn skillset_to_eo(skillset: Skillset7) -> &'static str {
+pub(crate) fn skillset_to_eo(skillset: etterna::Skillset7) -> &'static str {
 	match skillset {
 		Skillset7::Stream => "Stream",
 		Skillset7::Jumpstream => "Jumpstream",

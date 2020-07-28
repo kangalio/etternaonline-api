@@ -117,8 +117,8 @@ pub(crate) trait JsonValueExt: Sized {
 		self.attempt_get("f32", |j| Some(j.as_f64()? as f32))
 	}
 
-	fn difficulty_string(&self) -> Result<crate::Difficulty, Error> {
-		self.attempt_get("difficulty", |j| crate::Difficulty::from_long_string(j.as_str()?))
+	fn difficulty_string(&self) -> Result<etterna::Difficulty, Error> {
+		self.attempt_get("difficulty", |j| etterna::Difficulty::from_long_string(j.as_str()?))
 	}
 
 	fn singular_array_item(&self) -> Result<&serde_json::Value, Error> {
@@ -131,32 +131,32 @@ pub(crate) trait JsonValueExt: Sized {
 		})
 	}
 
-	fn rate_string(&self) -> Result<crate::Rate, Error> {
-		self.attempt_get("rate string", |j| crate::Rate::from_string(j.as_str()?))
+	fn rate_string(&self) -> Result<etterna::Rate, Error> {
+		self.attempt_get("rate string", |j| etterna::Rate::from_string(j.as_str()?))
 	}
 
-	fn rate_float(&self) -> Result<crate::Rate, Error> {
-		self.attempt_get("rate float", |j| crate::Rate::from_f32(j.as_f64()? as f32))
+	fn rate_float(&self) -> Result<etterna::Rate, Error> {
+		self.attempt_get("rate float", |j| etterna::Rate::from_f32(j.as_f64()? as f32))
 	}
 
-	fn wifescore_percent_float(&self) -> Result<crate::Wifescore, Error> {
-		self.attempt_get("wifescore percent float", |j| crate::Wifescore::from_percent(j.as_f64()? as f32))
+	fn wifescore_percent_float(&self) -> Result<etterna::Wifescore, Error> {
+		self.attempt_get("wifescore percent float", |j| etterna::Wifescore::from_percent(j.as_f64()? as f32))
 	}
 
-	fn wifescore_proportion_float(&self) -> Result<crate::Wifescore, Error> {
-		self.attempt_get("wifescore proportion float", |j| crate::Wifescore::from_proportion(j.as_f64()? as f32))
+	fn wifescore_proportion_float(&self) -> Result<etterna::Wifescore, Error> {
+		self.attempt_get("wifescore proportion float", |j| etterna::Wifescore::from_proportion(j.as_f64()? as f32))
 	}
 	
-	fn wifescore_proportion_string(&self) -> Result<crate::Wifescore, Error> {
-		self.attempt_get("wifescore proportion string", |j| crate::Wifescore::from_proportion(j.as_str()?.parse().ok()?))
+	fn wifescore_proportion_string(&self) -> Result<etterna::Wifescore, Error> {
+		self.attempt_get("wifescore proportion string", |j| etterna::Wifescore::from_proportion(j.as_str()?.parse().ok()?))
 	}
 
-	fn scorekey_string(&self) -> Result<crate::Scorekey, Error> {
-		self.attempt_get("scorekey string", |j| crate::Scorekey::new(j.as_str()?.to_owned()))
+	fn scorekey_string(&self) -> Result<etterna::Scorekey, Error> {
+		self.attempt_get("scorekey string", |j| etterna::Scorekey::new(j.as_str()?.to_owned()))
 	}
 
-	fn chartkey_string(&self) -> Result<crate::Chartkey, Error> {
-		self.attempt_get("chartkey string", |j| crate::Chartkey::new(j.as_str()?.to_owned()))
+	fn chartkey_string(&self) -> Result<etterna::Chartkey, Error> {
+		self.attempt_get("chartkey string", |j| etterna::Chartkey::new(j.as_str()?.to_owned()))
 	}
 }
 

@@ -5,8 +5,8 @@ use crate::Error;
 use crate::extension_traits::*;
 
 
-fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<UserSkillsets, Error> {
-	Ok(UserSkillsets {
+fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::UserSkillsets, Error> {
+	Ok(etterna::UserSkillsets {
 		stream: json["Stream"].f32_string()?,
 		jumpstream: json["Jumpstream"].f32_string()?,
 		handstream: json["Handstream"].f32_string()?,
@@ -197,7 +197,7 @@ impl Session {
 	pub fn chart_leaderboard(&mut self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardEntry>, Error> {
 		let json = self.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])?;
 		json.array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
-			ssr: ChartSkillsets {
+			ssr: etterna::ChartSkillsets {
 				stream: json["Stream"].f32_string()?,
 				jumpstream: json["Jumpstream"].f32_string()?,
 				handstream: json["Handstream"].f32_string()?,
@@ -210,7 +210,7 @@ impl Session {
 			max_combo: json["maxcombo"].u32_string()?,
 			is_valid: json["valid"].bool_int_string()?,
 			modifiers: json["modifiers"].string()?,
-			judgements: FullJudgements {
+			judgements: etterna::FullJudgements {
 				marvelouses: json["marv"].u32_string()?,
 				perfects: json["perfect"].u32_string()?,
 				greats: json["great"].u32_string()?,
@@ -278,7 +278,7 @@ impl Session {
 			is_moderator: json["moderator"].bool_int_string()?, // "0"
 			avatar: json["avatar"].string()?, // "251c375b7c64494a304ea4d3a55afa92.jpg"
 			default_modifiers: json["default_modifiers"].string_maybe()?, // null
-			rating: UserSkillsets {
+			rating: etterna::UserSkillsets {
 				stream: json["Stream"].f32_string()?, // "27.5298"
 				jumpstream: json["Jumpstream"].f32_string()?, // "27.4409"
 				handstream: json["Handstream"].f32_string()?, // "28.1328"
@@ -307,10 +307,10 @@ impl Session {
 	/// // As of 2020-07-25 (who knows)
 	/// assert!(ranks.handstream < ranks.jackspeed);
 	/// ```
-	pub fn user_ranks(&mut self, username: &str) -> Result<UserRank, Error> {
+	pub fn user_ranks(&mut self, username: &str) -> Result<etterna::UserRank, Error> {
 		let json = self.request("user_rank", &[("username", username)])?;
 
-		let user_rank = UserRank {
+		let user_rank = etterna::UserRank {
 			overall: json["Overall"].u32_string()?,
 			stream: json["Stream"].u32_string()?,
 			jumpstream: json["Jumpstream"].u32_string()?,
@@ -321,7 +321,7 @@ impl Session {
 			technical: json["Technical"].u32_string()?,
 		};
 
-		let user_rank_when_user_not_found = UserRank { overall: 1, stream: 1, jumpstream: 1,
+		let user_rank_when_user_not_found = etterna::UserRank { overall: 1, stream: 1, jumpstream: 1,
 			handstream: 1, stamina: 1, jackspeed: 1, chordjack: 1, technical: 1 };
 		if user_rank == user_rank_when_user_not_found {
 			return Err(Error::UserNotFound);
@@ -350,7 +350,7 @@ impl Session {
 	/// ```
 	pub fn user_top_scores(&mut self,
 		username: &str,
-		skillset: Skillset8,
+		skillset: etterna::Skillset8,
 		number: u32
 	) -> Result<Vec<TopScore>, Error> {
 		let json = self.request("user_top_scores", &[
@@ -436,7 +436,7 @@ impl Session {
 		let json = json.singular_array_item()?;
 
 		Ok(ScoreData {
-			ssr: ChartSkillsets {
+			ssr: etterna::ChartSkillsets {
 				stream: json["Stream"].f32_string()?,
 				jumpstream: json["Jumpstream"].f32_string()?,
 				handstream: json["Handstream"].f32_string()?,
@@ -449,7 +449,7 @@ impl Session {
 			max_combo: json["maxcombo"].u32_string()?,
 			is_valid: json["valid"].bool_int_string()?,
 			modifiers: json["modifiers"].string()?,
-			judgements: FullJudgements {
+			judgements: etterna::FullJudgements {
 				marvelouses: json["marv"].u32_string()?,
 				perfects: json["perfect"].u32_string()?,
 				greats: json["great"].u32_string()?,
