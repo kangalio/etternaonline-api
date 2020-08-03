@@ -54,6 +54,25 @@ pub struct ValidUserScoreInfo {
 	pub ssr_overall_nerfed: f32,
 }
 
+impl ValidUserScoreInfo {
+	pub fn nerf_factor(&self) -> f32 {
+		self.ssr_overall_nerfed / self.ssr.overall()
+	}
+
+	pub fn nerfed_ssr(&self) -> ChartSkillsets {
+		let nerf_factor = self.nerf_factor();
+		ChartSkillsets {
+			stream: self.ssr.stream * nerf_factor,
+			jumpstream: self.ssr.jumpstream * nerf_factor,
+			handstream: self.ssr.handstream * nerf_factor,
+			stamina: self.ssr.stamina * nerf_factor,
+			jackspeed: self.ssr.jackspeed * nerf_factor,
+			chordjack: self.ssr.chordjack * nerf_factor,
+			technical: self.ssr.technical * nerf_factor,
+		}
+	}
+}
+
 // I should, like, add more things to this...
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserDetails {

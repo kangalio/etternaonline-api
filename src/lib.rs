@@ -31,6 +31,9 @@ pub mod web;
 
 use thiserror::Error;
 
+#[cfg(feature = "serde")]
+compile_error!("Use the `serde_support` feature flag instead of `serde`");
+
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum Error {
 	// Normal errors
@@ -58,15 +61,15 @@ pub enum Error {
 	NoUsersFound,
 
 	// Meta errors
-	#[error("Server response was malformed or nonsensical")]
+	#[error("Server response was malformed or nonsensical ({0})")]
 	UnexpectedResponse(String),
-	#[error("Error while parsing the json sent by the server")]
+	#[error("Error while parsing the json sent by the server ({0})")]
 	InvalidJson(String),
 	#[error("Web server is down")]
 	ServerIsDown,
-	#[error("Some network error")]
+	#[error("Network error ({0})")]
 	NetworkError(String),
-	#[error("Server returned an unknown error")]
+	#[error("Server returned an unknown error ({0})")]
 	UnknownApiError(String),
 	#[error("Server sent a JSON payload that doesn't match expectations (debug: {0:?})")]
 	InvalidJsonStructure(Option<String>),
