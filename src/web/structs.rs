@@ -31,6 +31,15 @@ pub struct Country {
 	pub name: String,
 }
 
+pub struct UserScores {
+	/// Player's total number of scores
+	pub total_scores: u32,
+	/// Player's total number of scores after applying the selected filter criteria
+	pub total_filtered_scores: u32,
+	/// The range of scores that was requested
+	pub scores: Vec<UserScore>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserScore {

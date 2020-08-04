@@ -3,53 +3,51 @@ pub use structs::*;
 
 use crate::{Error, extension_traits::*};
 
+/// The kind of ranges that EO can process. Ranges can never be empty! They must have one or more
+/// elements
 pub trait EoRange {
-	/// The integer to send in the EO "start" field
-	fn start_int(&self) -> u32;
-	/// The integer to send in the EO "length" field. None if the range is empty
-	fn length_int(&self) -> Option<u32>;
+	#[doc(hidden)]
+	/// The length must not be zero
+	fn start_length(&self) -> (u32, u32);
 }
 
 impl EoRange for std::ops::Range<u32> {
-	fn start_int(&self) -> u32 { self.start }
-	fn length_int(&self) -> Option<u32> {
+	fn start_length(&self) -> (u32, u32) {
 		match self.end.saturating_sub(self.start) {
-			0 => None,
-			other => Some(other),
+			0 => panic!("Range cannot be empty or negative: {:?}", self),
+			length => (self.start, length),
 		}
 	}
 }
 
 impl EoRange for std::ops::RangeInclusive<u32> {
-	fn start_int(&self) -> u32 { *self.start() }
-	fn length_int(&self) -> Option<u32> {
-		match (self.end() + 1).saturating_sub(*self.start()) {
-			0 => None,
-			other => Some(other),
+	fn start_length(&self) -> (u32, u32) {
+		match self.end().saturating_sub(*self.start()) {
+			0 => panic!("Range cannot be empty or negative: {:?}", self),
+			length => (*self.start(), length),
 		}
 	}
 }
 
 impl EoRange for std::ops::RangeToInclusive<u32> {
-	fn start_int(&self) -> u32 { 0 }
-	fn length_int(&self) -> Option<u32> { Some(self.end + 1) } // don't need to change for empty range
+	fn start_length(&self) -> (u32, u32) {
+		(0, self.end + 1)
+	}
 }
 
 impl EoRange for std::ops::RangeTo<u32> {
-	fn start_int(&self) -> u32 { 0 }
-	fn length_int(&self) -> Option<u32> {
+	fn start_length(&self) -> (u32, u32) {
 		match self.end {
-			0 => None,
-			other => Some(other),
+			0 => panic!("Range cannot be empty: {:?}", self),
+			length => (0, length),
 		}
 	}
 }
 
 impl EoRange for std::ops::RangeFull {
-	fn start_int(&self) -> u32 { 0 }
-	fn length_int(&self) -> Option<u32> {
+	fn start_length(&self) -> (u32, u32) {
 		// EO interprets a zero length as a full range
-		Some(0)
+		(0, 0)
 	}
 }
 
@@ -88,14 +86,11 @@ impl Session {
 		Ok(response)
 	}
 
+	/// Panics if the provided range is empty or negative
 	pub fn packlist(&mut self,
 		range_to_retrieve: impl EoRange,
 	) -> Result<Vec<PackEntry>, Error> {
-		let start = range_to_retrieve.start_int();
-		let length = match range_to_retrieve.length_int() {
-			Some(x) => x,
-			None => return Ok(vec![]),
-		};
+		let (start, length) = range_to_retrieve.start_length();
 
 		let json = self.request("POST", "pack/packlist", |mut r| r
 			.send_form(&[
@@ -130,14 +125,11 @@ impl Session {
 		})).collect()
 	}
 
+	/// Panics if the provided range is empty or negative
 	pub fn leaderboard(&mut self,
 		range_to_retrieve: impl EoRange,
 	) -> Result<Vec<LeaderboardEntry>, Error> {
-		let start = range_to_retrieve.start_int();
-		let length = match range_to_retrieve.length_int() {
-			Some(x) => x,
-			None => return Ok(vec![]),
-		};
+		let (start, length) = range_to_retrieve.start_length();
 
 		let json = self.request("POST", "leaderboard/leaderboard", |mut r| r
 			.send_form(&[
@@ -180,22 +172,24 @@ impl Session {
 		}).collect()
 	}
 
+	/// Panics if the provided range is empty or negative
 	pub fn user_scores(&mut self,
 		user_id: u32,
 		range_to_retrieve: impl EoRange,
 		sort_criterium: UserScoresSortBy,
 		sort_direction: SortDirection,
-	) -> Result<Vec<UserScore>, Error> {
-		let start = range_to_retrieve.start_int();
-		let length = match range_to_retrieve.length_int() {
-			Some(x) => x,
-			None => return Ok(vec![]),
-		};
+		include_invalid: bool,
+	) -> Result<UserScores, Error> {
+		let (start, length) = range_to_retrieve.start_length();
 
 		let json = self.request("POST", "score/userScores", |mut r| r.send_form(&[
 			("start", &start.to_string()),
 			("length", &length.to_string()),
 			("userid", &user_id.to_string()),
+			("draw", match include_invalid {
+				true => "7",
+				false => "8",
+			}),
 			("order[0][dir]", match sort_direction {
 				SortDirection::Ascending => "asc",
 				SortDirection::Descending => "desc",
@@ -219,7 +213,7 @@ impl Session {
 			})
 		]))?.into_json()?;
 
-		json["data"].array()?.iter().map(|json| Ok(UserScore {
+		let scores = json["data"].array()?.iter().map(|json| Ok(UserScore {
 			song_name: json["songname"].attempt_get("song name", |j| Some(j
 				.as_str()?
 				.extract("\">", "</a>")?
@@ -279,7 +273,13 @@ impl Session {
 					ssr_overall_nerfed: json["Nerf"].f32_()?,
 				})
 			}
-		})).collect()
+		})).collect::<Result<Vec<UserScore>, Error>>()?;
+
+		Ok(UserScores {
+			total_scores: json["recordsTotal"].u32_()?,
+			total_filtered_scores: json["recordsFiltered"].u32_()?,
+			scores,
+		})
 	}
 
 	pub fn user_details(&mut self, username: &str) -> Result<UserDetails, Error> {

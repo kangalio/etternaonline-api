@@ -1,7 +1,7 @@
-#![allow(clippy::tabs_in_doc_comments)]
+#![allow(clippy::tabs_in_doc_comments, clippy::match_bool)]
 
 /*!
-This crate provides an ergonomic wrapper around the v1 and v2 API of
+This crate provides an ergonomic wrapper around the v1, v2 and web API of
 [EtternaOnline](https://etternaonline.com), commonly abbreviated "EO" (web API is work-in-progress).
 
 Depending on which API you choose, you might need an API token.
@@ -31,7 +31,7 @@ pub mod web;
 
 use thiserror::Error;
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", not(feature = "serde_support")))]
 compile_error!("Use the `serde_support` feature flag instead of `serde`");
 
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
