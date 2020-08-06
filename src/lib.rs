@@ -107,22 +107,7 @@ where
 	S: etterna::ScoringSystem,
 	W: etterna::Wife,
 {
-	let mut note_seconds_columns = [vec![], vec![], vec![], vec![]];
-	// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THESE VECTORS!!
-	let mut hit_seconds_columns = [vec![], vec![], vec![], vec![]];
-
-	for hit in replay.notes.iter() {
-		if hit.lane >= 4 { continue }
-
-		if !(hit.note_type == etterna::NoteType::Tap || hit.note_type == etterna::NoteType::HoldHead) {
-			continue;
-		}
-
-		note_seconds_columns[hit.lane as usize].push(hit.time - hit.deviation);
-		if !hit.is_miss() {
-			hit_seconds_columns[hit.lane as usize].push(hit.time);
-		}
-	}
+	let (mut note_seconds_columns, mut hit_seconds_columns) = replay.split_into_lanes();
 
 	let sort = |slice: &mut [f32]| slice.sort_by(|a, b| a.partial_cmp(b).unwrap());
 	for column in &mut note_seconds_columns { sort(column); }
