@@ -84,22 +84,25 @@ fn parse_score_data_user_2(json: &serde_json::Value) -> Result<ScoreUser, Error>
 /// Initialize a session using [`Session::new_from_login`]
 /// 
 /// # Example
-/// ```rust
+/// ```rust,no_run
+/// # fn main() -> Result<(), etternaonline_api::Error> {
+/// # use etternaonline_api::v2::*;
 /// let mut session = Session::new_from_login(
-/// 	"<USERNAME>",
-/// 	"<PASSWORD>",
-/// 	"<CLIENT_DATA>",
+/// 	"<USERNAME>".into(),
+/// 	"<PASSWORD>".into(),
+/// 	"<CLIENT_DATA>".into(),
 /// 	std::time::Duration::from_millis(2000), // Wait 2s inbetween requests
 /// 	None, // No request timeout
-/// );
+/// )?;
 /// 
 /// println!("Details about kangalioo: {:?}", session.user_details("kangalioo")?);
 /// 
-/// let best_score = session.user_top_10_scores("kangalioo")?[0];
+/// let best_score = &session.user_top_10_scores("kangalioo")?[0];
 /// println!(
 /// 	"kangalioo's best score has {} misses",
-/// 	session.score_data(best_score)?.judgements.misses
+/// 	session.score_data(&best_score.scorekey)?.judgements.misses
 /// );
+/// # Ok(()) }
 /// ```
 pub struct Session {
 	// This stuff is needed for re-login
@@ -126,16 +129,19 @@ impl Session {
 	/// - [`Error::InvalidLogin`] if username or password are wrong
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
 	/// let mut session = Session::new_from_login(
-	/// 	"kangalioo",
-	/// 	"<PASSWORD>",
-	/// 	"<CLIENT_DATA>",
+	/// 	"kangalioo".into(),
+	/// 	"<PASSWORD>".into(),
+	/// 	"<CLIENT_DATA>".into(),
 	/// 	std::time::Duration::from_millis(2000), // wait 2s inbetween requests
 	/// 	None, // no timeout
-	/// );
+	/// )?;
 	/// 
 	/// println!("Details about kangalioo: {:?}", session.user_details("kangalioo"));
+	/// # Ok(()) }
 	/// ```
 	pub fn new_from_login(
 		username: String,
@@ -282,9 +288,13 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
-	/// ```
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Retrieve details about user "kangalioo"
 	/// let details = session.user_details("kangalioo")?;
+	/// # Ok(()) }
 	/// ```
 	pub fn user_details(&mut self, username: &str) -> Result<UserDetails, Error> {
 		let json = self.get(&format!("user/{}", username))?;
@@ -328,9 +338,13 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
-	/// ```
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Retrieve the top 10 chordjack scores of user "kangalioo"
 	/// let scores = session.user_top_skillset_scores("kangalioo", Skillset7::Chordjack, 10)?;
+	/// # Ok(()) }
 	/// ```
 	pub fn user_top_skillset_scores(&mut self,
 		username: &str,
@@ -350,9 +364,13 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
-	/// ```
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Retrieve the top 10 scores of user "kangalioo"
 	/// let scores = session.user_top_10_scores("kangalioo")?;
+	/// # Ok(()) }
 	/// ```
 	pub fn user_top_10_scores(&mut self, username: &str) -> Result<Vec<TopScore>, Error> {
 		self.parse_top_scores(&format!("user/{}/top//", username))
@@ -364,9 +382,13 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
-	/// ```
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Retrieve the latest 10 scores of user "kangalioo"
 	/// let scores = session.user_latest_scores("kangalioo")?;
+	/// # Ok(()) }
 	/// ```
 	pub fn user_latest_scores(&mut self, username: &str) -> Result<Vec<LatestScore>, Error> {
 		let json = self.get(&format!("user/{}/latest", username))?;
@@ -387,9 +409,13 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
-	/// ```
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Retrieve "kangalioo"'s rank for each skillset
-	/// let scores = session.user_ranks("kangalioo")?;
+	/// let scores = session.user_ranks_per_skillset("kangalioo")?;
+	/// # Ok(()) }
 	/// ```
 	pub fn user_ranks_per_skillset(&mut self, username: &str) -> Result<etterna::UserRank, Error> {
 		let json = self.get(&format!("user/{}/ranks", username))?;
@@ -414,9 +440,13 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let top_scores = session.user_top_scores_per_skillset("kangalioo")?;
 	/// println!("kangalioo's 5th best handstream score is {:?}", top_scores.handstream[4]);
+	/// # Ok(()) }
 	/// ```
 	pub fn user_top_scores_per_skillset(&mut self,
 		username: &str,
@@ -455,8 +485,12 @@ impl Session {
 	///   `&str`, since `&Scorekey` is guaranteed to be valid)
 	/// 
 	/// # Example
-	/// ```
-	/// let score_info = session.score_data(Scorekey::new("S65565b5bc377c6d78b60c0aecfd9e05955b4cf63"))?;
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
+	/// let score_info = session.score_data("S65565b5bc377c6d78b60c0aecfd9e05955b4cf63")?;
+	/// # Ok(()) }
 	/// ```
 	pub fn score_data(&mut self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
 		let json = self.get(&format!("score/{}", scorekey.as_ref()))?;
@@ -489,10 +523,14 @@ impl Session {
 	/// - [`Error::ChartNotTracked`] if the chartkey provided is not tracked by EO
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let leaderboard = session.chart_leaderboard("X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
 	/// 
 	/// println!("The best Game Time score is being held by {}", leaderboard[0].user.username);
+	/// # Ok(()) }
 	/// ```
 	pub fn chart_leaderboard(&mut self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardScore>, Error> {
 		let json = self.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))?;
@@ -519,14 +557,18 @@ impl Session {
 	/// - [`Error::NoUsersFound`] if there are no users registered in this country
 	/// 
 	/// # Example
-	/// ```rust
-	/// let leaderboard = session.country_leaderboard("DE")?
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
+	/// let leaderboard = session.country_leaderboard("DE")?;
 	/// 
 	/// println!(
 	/// 	"The best German Etterna player is {} with a rating of {}",
 	/// 	leaderboard[0].user.username,
 	/// 	leaderboard[0].rating.overall(),
 	/// );
+	/// # Ok(()) }
 	/// ```
 	pub fn country_leaderboard(&mut self, country_code: &str) -> Result<Vec<LeaderboardEntry>, Error> {
 		let json = self.get(&format!("leaderboard/{}", country_code))?;
@@ -540,7 +582,10 @@ impl Session {
 	/// Retrieves the worldwide leaderboard of players.
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let leaderboard = session.world_leaderboard()?;
 	/// 
 	/// println!(
@@ -548,6 +593,7 @@ impl Session {
 	/// 	leaderboard[0].user.username,
 	/// 	leaderboard[0].rating.overall(),
 	/// );
+	/// # Ok(()) }
 	/// ```
 	pub fn world_leaderboard(&mut self) -> Result<Vec<LeaderboardEntry>, Error> {
 		self.country_leaderboard("")
@@ -559,9 +605,13 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the supplied username was not found
 	/// 
 	/// # Example
-	/// ```rust
-	/// let favorites = session.user_favorites("kangalioo");
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
+	/// let favorites = session.user_favorites("kangalioo")?;
 	/// println!("kangalioo has {} favorites", favorites.len());
+	/// # Ok(()) }
 	/// ```
 	pub fn user_favorites(&mut self, username: &str) -> Result<Vec<String>, Error> {
 		let json = self.get(&format!("user/{}/favorites", username))?;
@@ -578,9 +628,13 @@ impl Session {
 	/// - [`Error::ChartNotTracked`] if the chartkey provided is not tracked by EO
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Favorite Game Time
 	/// session.add_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
+	/// # Ok(()) }
 	/// ```
 	pub fn add_user_favorite(&mut self, username: &str, chartkey: impl AsRef<str>) -> Result<(), Error> {
 		self.request(
@@ -595,9 +649,13 @@ impl Session {
 	/// Remove a chart from the user's favorites.
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Unfavorite Game Time
 	/// session.remove_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
+	/// # Ok(()) }
 	/// ```
 	pub fn remove_user_favorite(&mut self, username: &str, chartkey: impl AsRef<str>) -> Result<(), Error> {
 		self.request(
@@ -616,10 +674,14 @@ impl Session {
 	///   goals
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let score_goals = session.user_goals("theropfather")?;
 	/// 
 	/// println!("theropfather has {} goals", score_goals.len());
+	/// # Ok(()) }
 	/// ```
 	pub fn user_goals(&mut self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
 		let json = self.get(&format!("user/{}/goals", username))?;
@@ -645,7 +707,10 @@ impl Session {
 	/// - [`Error::DatabaseError`] if there was a problem with the database
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Add a Game Time 1.0x AA score goal
 	/// session.add_user_goal(
 	/// 	"kangalioo",
@@ -654,6 +719,7 @@ impl Session {
 	/// 	0.93,
 	/// 	"2020-07-13 22:48:26",
 	/// )?;
+	/// # Ok(()) }
 	/// ```
 	// TODO: somehow enforce that `time_assigned` is valid ISO 8601
 	pub fn add_user_goal(&mut self,
@@ -682,7 +748,10 @@ impl Session {
 	/// Note: this API call doesn't seem to do anything
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Let's delete theropfather's first score goal
 	/// 
 	/// let score_goal = session.user_goals("theropfather")?[0];
@@ -693,18 +762,23 @@ impl Session {
 	/// 	score_goal.rate,
 	/// 	score_goal.wifescore
 	/// )?;
+	/// # Ok(()) }
 	/// ```
 	pub fn remove_user_goal(&mut self,
 		username: &str,
 		chartkey: impl AsRef<str>,
-		rate: f64,
-		wifescore: f64,
+		rate: Rate,
+		wifescore: Wifescore,
 	) -> Result<(), Error> {
-		let rate = format!("{}", rate);
-		let wifescore = format!("{}", wifescore);
 		self.request(
 			"DELETE",
-			&format!("user/{}/goals/{}/{}/{}", username, chartkey.as_ref(), wifescore, rate),
+			&format!(
+				"user/{}/goals/{}/{}/{}",
+				username,
+				chartkey.as_ref(),
+				wifescore.as_proportion(),
+				rate.as_f32()
+			),
 			|mut request| request.call(),
 		)?;
 
@@ -714,14 +788,19 @@ impl Session {
 	/// Update a score goal by replacing all its attributes with the given ones.
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v2::*;
+	/// # let mut session: Session = unimplemented!();
 	/// // Let's up kangalioo's first score goal's rate by 0.05
 	/// 
-	/// let score_goal = &mut session.user_goals("kangalioo")?[0];
+	/// let mut score_goal = &mut session.user_goals("kangalioo")?[0];
 	/// 
-	/// score_goal.rate += 0.05;
+	/// // Add 0.05 to the rate
+	/// score_goal.rate += Rate::from(0.05);
 	/// 
 	/// session.update_user_goal("kangalioo", score_goal)?;
+	/// # Ok(()) }
 	/// ```
 	pub fn update_user_goal(&mut self, username: &str, goal: &ScoreGoal) -> Result<(), Error> {
 		self.request(

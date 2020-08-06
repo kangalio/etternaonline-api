@@ -25,9 +25,12 @@ fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::UserSkill
 /// Initialize a session using [`Session::new`]
 /// 
 /// # Example
-/// ```rust
+/// ```rust,no_run
+/// # fn main() -> Result<(), etternaonline_api::Error> {
+/// # use etternaonline_api::v1::*;
+/// # let mut session: Session = unimplemented!();
 /// let mut session = Session::new(
-/// 	"<API KEY HERE>"
+/// 	"<API KEY HERE>".into(),
 /// 	std::time::Duration::from_millis(2000), // Wait 2s inbetween requests
 /// 	None, // No request timeout
 /// );
@@ -37,8 +40,9 @@ fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::UserSkill
 /// let best_score = session.user_top_scores("kangalioo", Skillset8::Overall, 1)?[0];
 /// println!(
 /// 	"kangalioo's best score has {} misses",
-/// 	session.score_data(best_score)?.judgements.misses
+/// 	session.score_data(&best_score.scorekey)?.judgements.misses
 /// );
+/// # Ok(()) }
 /// ```
 pub struct Session {
 	api_key: String,
@@ -93,10 +97,14 @@ impl Session {
 	/// - [`Error::ScoreNotFound`] if the given song id doesn't exist
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let song = session.song_data(2858)?;
 	/// 
 	/// assert_eq!(song.name, "Game Time");
+	/// # Ok(()) }
 	/// ```
 	pub fn song_data(&mut self, song_id: u32) -> Result<SongData, Error> {
 		let json = self.request("song", &[("key", song_id.to_string().as_str())])?;
@@ -141,9 +149,13 @@ impl Session {
 	/// for. Maybe the minimum version that the site was tested with? I don't know
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let client_version = session.client_version()?;
 	/// assert_eq!(client_version, "0.70.1"); // As of 2020-07-25
+	/// # Ok(()) }
 	/// ```
 	pub fn client_version(&mut self) -> Result<String, Error> {
 		Ok(self.request("clientVersion", &[])?["version"].string()?)
@@ -152,9 +164,13 @@ impl Session {
 	/// Retrieve the link where you can register for an EO account
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let register_link = session.register_link()?;
 	/// assert_eq!(register_link, "https://etternaonline.com/user/register/"); // As of 2020-07-25
+	/// # Ok(()) }
 	/// ```
 	pub fn register_link(&mut self) -> Result<String, Error> {
 		Ok(self.request("registerLink", &[])?["link"].string()?)
@@ -163,12 +179,16 @@ impl Session {
 	/// Retrieves a list of all packs tracked on EO
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let pack_list = session.pack_list()?;
 	/// 
 	/// // As of 2020-07-25
 	/// assert_eq!(pack_list[0].name, "'c**t");
 	/// assert_eq!(pack_list[1].name, "'d");
+	/// # Ok(()) }
 	/// ```
 	pub fn pack_list(&mut self) -> Result<Vec<PackEntry>, Error> {
 		let json = self.request("pack_list", &[])?;
@@ -190,9 +210,13 @@ impl Session {
 	/// - [`Error::ChartNotTracked`] if the given chartkey is not tracked on EO
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let leaderboard = session.chart_leaderboard("Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d3")?;
 	/// assert_eq!(leaderboard[0].user.username, "kangalioo"); // As of 2020-07-25
+	/// # Ok(()) }
 	/// ```
 	pub fn chart_leaderboard(&mut self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardEntry>, Error> {
 		let json = self.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])?;
@@ -241,9 +265,13 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the specified user does not exist
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let latest_scores = session.user_latest_10_scores("kangalioo")?;
 	/// println!("Last played song was {}", latest_scores[0].song_name);
+	/// # Ok(()) }
 	/// ```
 	pub fn user_latest_10_scores(&mut self, username: &str) -> Result<Vec<LatestScore>, Error> {
 		let json = self.request("last_user_session", &[("username", username)])?;
@@ -262,11 +290,15 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the specified user does not exist
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let me = session.user_data("kangalioo")?;
 	/// 
-	/// assert_eq!(&me.country_code, "DE");
-	/// assert_eq!(&me.is_moderator, false);
+	/// assert_eq!(me.country_code, Some("DE".into()));
+	/// assert_eq!(me.is_moderator, false);
+	/// # Ok(()) }
 	/// ```
 	pub fn user_data(&mut self, username: &str) -> Result<UserData, Error> {
 		let json = self.request("user_data", &[("username", username)])?;
@@ -301,11 +333,15 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the specified user does not exist
 	/// 
 	/// # Example
-	/// ```rust
-	/// let ranks = session.user_ranks("kangalioo");
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
+	/// let ranks = session.user_ranks("kangalioo")?;
 	/// 
 	/// // As of 2020-07-25 (who knows)
 	/// assert!(ranks.handstream < ranks.jackspeed);
+	/// # Ok(()) }
 	/// ```
 	pub fn user_ranks(&mut self, username: &str) -> Result<etterna::UserRank, Error> {
 		let json = self.request("user_rank", &[("username", username)])?;
@@ -339,7 +375,10 @@ impl Session {
 	/// - [`Error::UserNotFound`] if the specified user does not exist
 	/// 
 	/// # Example
-	/// ```rust
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let top_jumpstream_scores = session.user_top_scores(
 	/// 	"kangalioo",
 	/// 	Skillset8::Jumpstream,
@@ -347,6 +386,7 @@ impl Session {
 	/// )?;
 	/// 
 	/// assert_eq!(&top_jumpstream_scores[0].song_name, "Everytime I hear Your Name");
+	/// # Ok(()) }
 	/// ```
 	pub fn user_top_scores(&mut self,
 		username: &str,
@@ -389,14 +429,18 @@ impl Session {
 	/// - [`Error::NoUsersFound`] if there are no users registered in this country
 	/// 
 	/// # Example
-	/// ```rust
-	/// let leaderboard = session.country_leaderboard("DE")?
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
+	/// let leaderboard = session.country_leaderboard("DE")?;
 	/// 
 	/// println!(
 	/// 	"The best German Etterna player is {} with a rating of {}",
-	/// 	leaderboard[0].user.username,
+	/// 	leaderboard[0].username,
 	/// 	leaderboard[0].rating.overall(),
 	/// );
+	/// # Ok(()) }
 	/// ```
 	pub fn country_leaderboard(&mut self,
 		country_code: &str,
@@ -407,14 +451,18 @@ impl Session {
 	/// Retrieves the top 10 players worldwide
 	/// 
 	/// # Example
-	/// ```rust
-	/// let leaderboard = session.world_leaderboard()?;
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
+	/// let leaderboard = session.global_leaderboard()?;
 	/// 
 	/// println!(
 	/// 	"The world's best Etterna player is {} with a rating of {}",
-	/// 	leaderboard[0].user.username,
+	/// 	leaderboard[0].username,
 	/// 	leaderboard[0].rating.overall(),
 	/// );
+	/// # Ok(()) }
 	/// ```
 	pub fn global_leaderboard(&mut self) -> Result<Vec<LeaderboardEntry>, Error> {
 		self.generic_leaderboard(&[])
@@ -426,13 +474,17 @@ impl Session {
 	/// - [`Error::ScoreNotFound`] if the supplied scorekey was not found
 	/// 
 	/// # Example
-	/// ```
+	/// ```rust,no_run
+	/// # fn main() -> Result<(), etternaonline_api::Error> {
+	/// # use etternaonline_api::v1::*;
+	/// # let mut session: Session = unimplemented!();
 	/// let score_info = session.score_data("S11f0f01ab55220ebbf4e0e5ee28d36cce9a72722")?;
 	/// 
-	/// assert_eq!(score_info.max_combo, 1026)
+	/// assert_eq!(score_info.max_combo, 1026);
+	/// # Ok(()) }
 	/// ```
-	pub fn score_data(&mut self, scorekey: &str) -> Result<ScoreData, Error> {
-		let json = self.request("score", &[("key", scorekey)])?;
+	pub fn score_data(&mut self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
+		let json = self.request("score", &[("key", scorekey.as_ref())])?;
 		let json = json.singular_array_item()?;
 
 		Ok(ScoreData {
