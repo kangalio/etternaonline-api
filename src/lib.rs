@@ -101,7 +101,8 @@ fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time
 pub fn rescore<S, W>(
 	replay: &Replay,
 	num_hit_mines: u32,
-	num_dropped_holds: u32
+	num_dropped_holds: u32,
+	judge: &etterna::Judge,
 ) -> etterna::Wifescore
 where
 	S: etterna::ScoringSystem,
@@ -118,5 +119,6 @@ where
 		&hit_seconds_columns,
 		num_hit_mines,
 		num_dropped_holds,
+		judge,
 	)
 }

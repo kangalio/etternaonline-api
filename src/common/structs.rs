@@ -32,8 +32,8 @@ impl Replay {
 			}
 
 			note_seconds_columns[hit.lane as usize].push(hit.time);
-			if !hit.is_miss() {
-				hit_seconds_columns[hit.lane as usize].push(hit.time + hit.deviation);
+			if let Some(deviation) = hit.deviation { // if it's not miss
+				hit_seconds_columns[hit.lane as usize].push(hit.time + deviation);
 			}
 		}
 
@@ -55,8 +55,8 @@ impl Replay {
 			}
 
 			note_seconds.push(hit.time);
-			if !hit.is_miss() {
-				hit_seconds.push(hit.time + hit.deviation);
+			if let Some(deviation) = hit.deviation { // if it's not miss
+				hit_seconds.push(hit.time + deviation);
 			}
 		}
 
@@ -65,7 +65,7 @@ impl Replay {
 }
 
 impl etterna::SimpleReplay for Replay {
-	fn iter_deviations(&self) -> Box<dyn '_ + Iterator<Item = f32>> {
+	fn iter_deviations(&self) -> Box<dyn '_ + Iterator<Item = Option<f32>>> {
 		Box::new(self.notes.iter().map(|note| note.deviation))
 	}
 }
@@ -77,9 +77,9 @@ pub struct ReplayNote {
 	/// The position of the note inside the chart, in seconds. **Note: EO returns slightly incorrect
 	/// values here!**
 	pub time: f32,
-	/// The offset that the note was hit with, in seconds. A 50ms early hit would be `-0.05`. A miss
-	/// is always 0.18
-	pub deviation: f32,
+	/// The offset that the note was hit with, in seconds. A 50ms early hit would be `-0.05`. None
+	/// if miss
+	pub deviation: Option<f32>,
 	/// The position of the ntoe inside the chart, in ticks (192nds)
 	pub tick: Option<u32>,
 	/// The lane/column that this note appears on. 0-3 for 4k, 0-5 for 6k
@@ -90,7 +90,7 @@ pub struct ReplayNote {
 
 impl ReplayNote {
 	pub fn is_miss(&self) -> bool {
-		self.deviation.abs() >= 0.18 - 0.0000001
+		self.deviation.is_none()
 	}
 }
 

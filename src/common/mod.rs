@@ -50,7 +50,14 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 		let note_json = note_json.array()?;
 		ReplayNote {
 			time: note_json[0].f32_()?,
-			deviation: note_json[1].f32_()? / 1000.0,
+			deviation: {
+				let deviation = note_json[1].f32_()? / 1000.0;
+				if (deviation - 0.18).abs() < 0.0000001 {
+					None
+				} else {
+					Some(deviation)
+				}
+			},
 			lane: note_json[2].u32_()? as u8,
 			note_type: note_type_from_eo(&note_json[3])?,
 			tick: match note_json.get(4) { // it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
