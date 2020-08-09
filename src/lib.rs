@@ -35,6 +35,7 @@ use thiserror::Error;
 compile_error!("Use the `serde_support` feature flag instead of `serde`");
 
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[non_exhaustive]
 pub enum Error {
 	// Normal errors
 	#[error("User not found")]
