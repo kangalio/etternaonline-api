@@ -72,9 +72,8 @@ impl Session {
 			request.timeout(timeout);
 		}
 
-		let response = request.call();
-
-		let json = response.into_json().map_err(|e| Error::InvalidJson(e.to_string()))?;
+		let response = request.call().into_string()?;
+		let json: serde_json::Value = serde_json::from_str(&response)?;
 
 		if let Some(error) = json["error"].as_str() {
 			return Err(match error {

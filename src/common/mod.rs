@@ -43,8 +43,7 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 		_ => return Ok(None),
 	};
 
-	let json: serde_json::Value = serde_json::from_str(replay_str)
-		.map_err(|e| Error::InvalidJson(format!("{}", e)))?;
+	let json: serde_json::Value = serde_json::from_str(replay_str)?;
 
 	let notes = json.array()?.iter().map(|note_json| Ok({
 		let note_json = note_json.array()?;

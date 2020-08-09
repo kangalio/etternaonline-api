@@ -34,7 +34,7 @@ use thiserror::Error;
 #[cfg(all(feature = "serde", not(feature = "serde_support")))]
 compile_error!("Use the `serde_support` feature flag instead of `serde`");
 
-#[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
 	// Normal errors
@@ -65,7 +65,7 @@ pub enum Error {
 	#[error("Server response was malformed or nonsensical ({0})")]
 	UnexpectedResponse(String),
 	#[error("Error while parsing the json sent by the server ({0})")]
-	InvalidJson(String),
+	InvalidJson(#[from] serde_json::Error),
 	#[error("Web server is down")]
 	ServerIsDown,
 	#[error("Network error ({0})")]
@@ -111,6 +111,9 @@ where
 {
 	let (mut note_seconds_columns, mut hit_seconds_columns) = replay.split_into_lanes();
 
+	// Yes it's correct that I'm sorting both lists separate from another way, and yes it's correct
+	// that with that, their ordering won't be the same anymore. This is all okay, because that's
+	// how the rescorers accept their data and how they work.
 	let sort = |slice: &mut [f32]| slice.sort_by(|a, b| a.partial_cmp(b).unwrap());
 	for column in &mut note_seconds_columns { sort(column); }
 	for column in &mut hit_seconds_columns { sort(column); }

@@ -220,19 +220,18 @@ impl Session {
 		}
 
 		let status = response.status();
-		let mut json = match response.into_json() {
-			Ok(json) => json,
-			Err(e) => {
-				let error_msg = format!("{}", e);
-				if error_msg.contains("timed out reading response") {
-					// yes, there are two places where timeouts can happen :p
-					// see https://github.com/algesten/ureq/issues/119
-					return Err(Error::Timeout);
-				} else {
-					return Err(Error::InvalidJson(error_msg));
-				}
+		let response = match response.into_string() {
+			Ok(response) => response,
+			Err(e) => return if e.to_string().contains("timed out reading response") {
+				// yes, there are two places where timeouts can happen :p
+				// see https://github.com/algesten/ureq/issues/119
+				Err(Error::Timeout)
+			} else {
+				Err(e.into())
 			}
 		};
+
+		let mut json: serde_json::Value = serde_json::from_str(&response)?;
 		
 		// Error handling
 		if status >= 400 {
