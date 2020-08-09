@@ -17,7 +17,7 @@ serde_json = "1.0"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"], optional = true }
 libm = "0.2.1"
-etterna = { package = "etterna_base", path = "../etterna-base" }
+etterna = { package = "etterna_base", git = "https://github.com/kangalioo/etterna-base" }
 
 [features]
 serde_support = ["etterna/serde", "serde"]
