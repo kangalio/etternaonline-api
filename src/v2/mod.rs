@@ -111,11 +111,11 @@ pub struct Session {
 	client_data: String,
 
 	// The auth key that we get from the server on login
-	authorization: String,
+	authorization: crate::common::AuthorizationManager<Option<String>>,
 	
 	// Rate limiting stuff
-	last_request: std::time::Instant,
-	rate_limit: std::time::Duration,
+	last_request: std::cell::Cell<std::time::Instant>,
+	cooldown: std::time::Duration,
 
 	timeout: Option<std::time::Duration>,
 }
@@ -147,14 +147,13 @@ impl Session {
 		username: String,
 		password: String,
 		client_data: String,
-		rate_limit: std::time::Duration,
+		cooldown: std::time::Duration,
 		timeout: Option<std::time::Duration>,
 	) -> Result<Self, Error> {
-		let authorization = "dummy key that will be replaced anyway when I login".into();
-
-		let mut session = Self {
-			username, password, client_data, authorization, rate_limit, timeout,
-			last_request: std::time::Instant::now(),
+		let session = Self {
+			username, password, client_data, cooldown, timeout,
+			authorization: crate::common::AuthorizationManager::new(None),
+			last_request: std::cell::Cell::new(std::time::Instant::now() - cooldown),
 		};
 		session.login()?;
 
@@ -166,39 +165,40 @@ impl Session {
 	// return Unauthorized, and then my client will try to login to get a fresh token, and the
 	// process repeats indefinitely...? I just hope that the EO server never throws an Unauthorized
 	// on login
-	fn login(&mut self) -> Result<u64, Error> {
-		let form: &[(&str, &str)] = &[
-			// eh fuck it. I dont wanna bother with those lifetime headaches
-			// who needs allocation efficiency anyways
-			("username", &self.username.clone()),
-			("password", &self.password.clone()),
-			("clientData", &self.client_data.clone()),
-		];
-
-		let json = self.generic_request(
-			"POST",
-			"login",
-			|mut request| request.send_form(form),
-			false,
-			false,
-		)?;
-
-		self.authorization = format!(
-			"Bearer {}",
-			json["attributes"]["accessToken"].str_()?,
-		);
-
-		Ok(json["attributes"]["expiresAt"].u64_()?)
+	fn login(&self) -> Result<(), Error> {
+		self.authorization.refresh(|| {
+			let form: &[(&str, &str)] = &[
+				// eh fuck it. I dont wanna bother with those lifetime headaches
+				// who needs allocation efficiency anyways
+				("username", &self.username.clone()),
+				("password", &self.password.clone()),
+				("clientData", &self.client_data.clone()),
+			];
+	
+			let json = self.generic_request(
+				"POST",
+				"login",
+				|mut request| request.send_form(form),
+				false,
+			)?;
+	
+			Ok(Some(format!(
+				"Bearer {}",
+				json["attributes"]["accessToken"].str_()?,
+			)))
+		})
 	}
 
-	fn generic_request(&mut self,
+	// If `do_authorization` is set, the authorization field will be locked immutably! So if the
+	// caller has a mutable lock active when calling generic_request, DONT PASS true FOR
+	// do_authorization, or we'll deadlock!
+	fn generic_request(&self,
 		method: &str,
 		path: &str,
 		request_callback: impl Fn(ureq::Request) -> ureq::Response,
 		do_authorization: bool,
-		do_rate_limiting: bool,
 	) -> Result<serde_json::Value, Error> {
-		if do_rate_limiting { crate::rate_limit(&mut self.last_request, self.rate_limit) }
+		crate::rate_limit(&self.last_request, self.cooldown);
 
 		let mut request = ureq::request(
 			method,
@@ -208,7 +208,11 @@ impl Session {
 			request.timeout(timeout);
 		}
 		if do_authorization {
-			request.set("Authorization", &self.authorization);
+			let auth = self.authorization.get_authorization()
+				.as_ref()
+				.expect("No authorization set even though it was requested??")
+				.clone();
+			request.set("Authorization", &auth);
 		}
 
 		let response = request_callback(request);
@@ -246,7 +250,7 @@ impl Session {
 				"Unauthorized" => {
 					// Token expired, let's login again and retry
 					self.login()?;
-					return self.request(method, path, request_callback);
+					return self.generic_request(method, path, request_callback, do_authorization);
 				},
 				"Score not found" => Err(Error::ScoreNotFound),
 				"Chart not tracked" => Err(Error::ChartNotTracked),
@@ -267,15 +271,15 @@ impl Session {
 		Ok(json["data"].take())
 	}
 
-	fn request(&mut self,
+	fn request(&self,
 		method: &str,
 		path: &str,
 		request_callback: impl Fn(ureq::Request) -> ureq::Response
 	) -> Result<serde_json::Value, Error> {
-		self.generic_request(method, path, request_callback, true, true)
+		self.generic_request(method, path, request_callback, true)
 	}
 
-	fn get(&mut self, path: &str) -> Result<serde_json::Value, Error> {
+	fn get(&self, path: &str) -> Result<serde_json::Value, Error> {
 		self.request("GET", path, |mut request| request.call())
 	}
 
@@ -295,7 +299,7 @@ impl Session {
 	/// let details = session.user_details("kangalioo")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_details(&mut self, username: &str) -> Result<UserDetails, Error> {
+	pub fn user_details(&self, username: &str) -> Result<UserDetails, Error> {
 		let json = self.get(&format!("user/{}", username))?;
 		let json = &json["attributes"];
 
@@ -315,7 +319,7 @@ impl Session {
 		})
 	}
 	
-	fn parse_top_scores(&mut self, url: &str) -> Result<Vec<TopScore>, Error> {
+	fn parse_top_scores(&self, url: &str) -> Result<Vec<TopScore>, Error> {
 		let json = self.get(url)?;
 
 		json.array()?.iter().map(|json| Ok(TopScore {
@@ -345,7 +349,7 @@ impl Session {
 	/// let scores = session.user_top_skillset_scores("kangalioo", Skillset7::Chordjack, 10)?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_skillset_scores(&mut self,
+	pub fn user_top_skillset_scores(&self,
 		username: &str,
 		skillset: etterna::Skillset7,
 		limit: u32,
@@ -371,7 +375,7 @@ impl Session {
 	/// let scores = session.user_top_10_scores("kangalioo")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_10_scores(&mut self, username: &str) -> Result<Vec<TopScore>, Error> {
+	pub fn user_top_10_scores(&self, username: &str) -> Result<Vec<TopScore>, Error> {
 		self.parse_top_scores(&format!("user/{}/top//", username))
 	}
 	
@@ -389,7 +393,7 @@ impl Session {
 	/// let scores = session.user_latest_scores("kangalioo")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_latest_scores(&mut self, username: &str) -> Result<Vec<LatestScore>, Error> {
+	pub fn user_latest_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
 		let json = self.get(&format!("user/{}/latest", username))?;
 
 		json.array()?.iter().map(|json| Ok(LatestScore {
@@ -416,7 +420,7 @@ impl Session {
 	/// let scores = session.user_ranks_per_skillset("kangalioo")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_ranks_per_skillset(&mut self, username: &str) -> Result<etterna::UserRank, Error> {
+	pub fn user_ranks_per_skillset(&self, username: &str) -> Result<etterna::UserRank, Error> {
 		let json = self.get(&format!("user/{}/ranks", username))?;
 		let json = &json["attributes"];
 
@@ -447,7 +451,7 @@ impl Session {
 	/// println!("kangalioo's 5th best handstream score is {:?}", top_scores.handstream[4]);
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_scores_per_skillset(&mut self,
+	pub fn user_top_scores_per_skillset(&self,
 		username: &str,
 	) -> Result<UserTopScoresPerSkillset, Error> {
 		let json = self.get(&format!("user/{}/all", username))?;
@@ -491,7 +495,7 @@ impl Session {
 	/// let score_info = session.score_data("S65565b5bc377c6d78b60c0aecfd9e05955b4cf63")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn score_data(&mut self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
+	pub fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
 		let json = self.get(&format!("score/{}", scorekey.as_ref()))?;
 
 		let scorekey = json["id"].scorekey_string()?;
@@ -531,7 +535,7 @@ impl Session {
 	/// println!("The best Game Time score is being held by {}", leaderboard[0].user.username);
 	/// # Ok(()) }
 	/// ```
-	pub fn chart_leaderboard(&mut self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardScore>, Error> {
+	pub fn chart_leaderboard(&self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardScore>, Error> {
 		let json = self.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))?;
 
 		json.array()?.iter().map(|json| Ok(ChartLeaderboardScore {
@@ -569,7 +573,7 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn country_leaderboard(&mut self, country_code: &str) -> Result<Vec<LeaderboardEntry>, Error> {
+	pub fn country_leaderboard(&self, country_code: &str) -> Result<Vec<LeaderboardEntry>, Error> {
 		let json = self.get(&format!("leaderboard/{}", country_code))?;
 
 		json.array()?.iter().map(|json| Ok(LeaderboardEntry {
@@ -594,7 +598,7 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn world_leaderboard(&mut self) -> Result<Vec<LeaderboardEntry>, Error> {
+	pub fn world_leaderboard(&self) -> Result<Vec<LeaderboardEntry>, Error> {
 		self.country_leaderboard("")
 	}
 
@@ -612,7 +616,7 @@ impl Session {
 	/// println!("kangalioo has {} favorites", favorites.len());
 	/// # Ok(()) }
 	/// ```
-	pub fn user_favorites(&mut self, username: &str) -> Result<Vec<String>, Error> {
+	pub fn user_favorites(&self, username: &str) -> Result<Vec<String>, Error> {
 		let json = self.get(&format!("user/{}/favorites", username))?;
 
 		json.array()?.iter().map(|obj| Ok(
@@ -635,7 +639,7 @@ impl Session {
 	/// session.add_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn add_user_favorite(&mut self, username: &str, chartkey: impl AsRef<str>) -> Result<(), Error> {
+	pub fn add_user_favorite(&self, username: &str, chartkey: impl AsRef<str>) -> Result<(), Error> {
 		self.request(
 			"POST",
 			&format!("user/{}/favorites", username),
@@ -656,7 +660,7 @@ impl Session {
 	/// session.remove_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn remove_user_favorite(&mut self, username: &str, chartkey: impl AsRef<str>) -> Result<(), Error> {
+	pub fn remove_user_favorite(&self, username: &str, chartkey: impl AsRef<str>) -> Result<(), Error> {
 		self.request(
 			"DELETE",
 			&format!("user/{}/favorites/{}", username, chartkey.as_ref()),
@@ -682,7 +686,7 @@ impl Session {
 	/// println!("theropfather has {} goals", score_goals.len());
 	/// # Ok(()) }
 	/// ```
-	pub fn user_goals(&mut self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
+	pub fn user_goals(&self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
 		let json = self.get(&format!("user/{}/goals", username))?;
 
 		json.array()?.iter().map(|json| Ok(ScoreGoal {
@@ -721,7 +725,7 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	// TODO: somehow enforce that `time_assigned` is valid ISO 8601
-	pub fn add_user_goal(&mut self,
+	pub fn add_user_goal(&self,
 		username: &str,
 		chartkey: impl AsRef<str>,
 		rate: f64,
@@ -763,7 +767,7 @@ impl Session {
 	/// )?;
 	/// # Ok(()) }
 	/// ```
-	pub fn remove_user_goal(&mut self,
+	pub fn remove_user_goal(&self,
 		username: &str,
 		chartkey: impl AsRef<str>,
 		rate: Rate,
@@ -801,7 +805,7 @@ impl Session {
 	/// session.update_user_goal("kangalioo", score_goal)?;
 	/// # Ok(()) }
 	/// ```
-	pub fn update_user_goal(&mut self, username: &str, goal: &ScoreGoal) -> Result<(), Error> {
+	pub fn update_user_goal(&self, username: &str, goal: &ScoreGoal) -> Result<(), Error> {
 		self.request(
 			"POST",
 			&format!("user/{}/goals/update", username),
@@ -818,7 +822,7 @@ impl Session {
 		Ok(())
 	}
 
-	// pub fn test(&mut self) -> Result<(), Error> {
+	// pub fn test(&self) -> Result<(), Error> {
 		// let best_score = &self.user_top_10_scores("kangalioo")?[0];
 
 		// println!("{:#?}", self.user_top_skillset_scores("kangalioo", Skillset7::Technical, 3)?);

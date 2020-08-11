@@ -88,13 +88,16 @@ impl From<std::io::Error> for Error {
     }
 }
 
-fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time::Duration) {
+fn rate_limit(
+	last_request: &std::cell::Cell<std::time::Instant>,
+	request_cooldown: std::time::Duration
+) {
 	let now = std::time::Instant::now();
-	let time_since_last_request = now.duration_since(*last_request);
+	let time_since_last_request = now.duration_since(last_request.get());
 	if time_since_last_request < request_cooldown {
 		std::thread::sleep(request_cooldown - time_since_last_request);
 	}
-	*last_request = now;
+	last_request.set(now);
 }
 
 // This only works with 4k replays at the moment! All notes beyond the first four columns are
@@ -111,7 +114,7 @@ where
 {
 	let (mut note_seconds_columns, mut hit_seconds_columns) = replay.split_into_lanes();
 
-	// Yes it's correct that I'm sorting both lists separate from another way, and yes it's correct
+	// Yes it's correct that I'm sorting the two lists separately, and yes it's correct
 	// that with that, their ordering won't be the same anymore. This is all okay, because that's
 	// how the rescorers accept their data and how they work.
 	let sort = |slice: &mut [f32]| slice.sort_by(|a, b| a.partial_cmp(b).unwrap());

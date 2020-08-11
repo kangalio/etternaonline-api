@@ -48,7 +48,7 @@ pub struct Session {
 	api_key: String,
 	cooldown: std::time::Duration,
 	timeout: Option<std::time::Duration>,
-	last_request: std::time::Instant,
+	last_request: std::cell::Cell<std::time::Instant>,
 }
 
 impl Session {
@@ -57,11 +57,14 @@ impl Session {
 		cooldown: std::time::Duration,
 		timeout: Option<std::time::Duration>,
 	) -> Self {
-		Self { api_key, cooldown, timeout, last_request: std::time::Instant::now() - cooldown }
+		Self {
+			api_key, cooldown, timeout,
+			last_request: std::cell::Cell::new(std::time::Instant::now() - cooldown),
+		}
 	}
 
-	fn request(&mut self, path: &str, parameters: &[(&str, &str)]) -> Result<serde_json::Value, Error> {
-		crate::rate_limit(&mut self.last_request, self.cooldown);
+	fn request(&self, path: &str, parameters: &[(&str, &str)]) -> Result<serde_json::Value, Error> {
+		crate::rate_limit(&self.last_request, self.cooldown);
 
 		let mut request = ureq::get(&format!("https://api.etternaonline.com/v1/{}", path));
 		for (param, value) in parameters {
@@ -105,7 +108,7 @@ impl Session {
 	/// assert_eq!(song.name, "Game Time");
 	/// # Ok(()) }
 	/// ```
-	pub fn song_data(&mut self, song_id: u32) -> Result<SongData, Error> {
+	pub fn song_data(&self, song_id: u32) -> Result<SongData, Error> {
 		let json = self.request("song", &[("key", song_id.to_string().as_str())])?;
 		let json = json.singular_array_item()?;
 
@@ -156,7 +159,7 @@ impl Session {
 	/// assert_eq!(client_version, "0.70.1"); // As of 2020-07-25
 	/// # Ok(()) }
 	/// ```
-	pub fn client_version(&mut self) -> Result<String, Error> {
+	pub fn client_version(&self) -> Result<String, Error> {
 		Ok(self.request("clientVersion", &[])?["version"].string()?)
 	}
 
@@ -171,7 +174,7 @@ impl Session {
 	/// assert_eq!(register_link, "https://etternaonline.com/user/register/"); // As of 2020-07-25
 	/// # Ok(()) }
 	/// ```
-	pub fn register_link(&mut self) -> Result<String, Error> {
+	pub fn register_link(&self) -> Result<String, Error> {
 		Ok(self.request("registerLink", &[])?["link"].string()?)
 	}
 
@@ -189,7 +192,7 @@ impl Session {
 	/// assert_eq!(pack_list[1].name, "'d");
 	/// # Ok(()) }
 	/// ```
-	pub fn pack_list(&mut self) -> Result<Vec<PackEntry>, Error> {
+	pub fn pack_list(&self) -> Result<Vec<PackEntry>, Error> {
 		let json = self.request("pack_list", &[])?;
 		json.array()?.iter().map(|json| Ok(PackEntry {
 			id: json["packid"].u32_()?,
@@ -217,7 +220,7 @@ impl Session {
 	/// assert_eq!(leaderboard[0].user.username, "kangalioo"); // As of 2020-07-25
 	/// # Ok(()) }
 	/// ```
-	pub fn chart_leaderboard(&mut self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardEntry>, Error> {
+	pub fn chart_leaderboard(&self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardEntry>, Error> {
 		let json = self.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])?;
 		json.array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
 			ssr: etterna::ChartSkillsets {
@@ -272,7 +275,7 @@ impl Session {
 	/// println!("Last played song was {}", latest_scores[0].song_name);
 	/// # Ok(()) }
 	/// ```
-	pub fn user_latest_10_scores(&mut self, username: &str) -> Result<Vec<LatestScore>, Error> {
+	pub fn user_latest_10_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
 		let json = self.request("last_user_session", &[("username", username)])?;
 
 		json.array()?.iter().map(|json| Ok(LatestScore {
@@ -299,7 +302,7 @@ impl Session {
 	/// assert_eq!(me.is_moderator, false);
 	/// # Ok(()) }
 	/// ```
-	pub fn user_data(&mut self, username: &str) -> Result<UserData, Error> {
+	pub fn user_data(&self, username: &str) -> Result<UserData, Error> {
 		let json = self.request("user_data", &[("username", username)])?;
 
 		Ok(UserData {
@@ -342,7 +345,7 @@ impl Session {
 	/// assert!(ranks.handstream < ranks.jackspeed);
 	/// # Ok(()) }
 	/// ```
-	pub fn user_ranks(&mut self, username: &str) -> Result<etterna::UserRank, Error> {
+	pub fn user_ranks(&self, username: &str) -> Result<etterna::UserRank, Error> {
 		let json = self.request("user_rank", &[("username", username)])?;
 
 		let user_rank = etterna::UserRank {
@@ -387,7 +390,7 @@ impl Session {
 	/// assert_eq!(&top_jumpstream_scores[0].song_name, "Everytime I hear Your Name");
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_scores(&mut self,
+	pub fn user_top_scores(&self,
 		username: &str,
 		skillset: etterna::Skillset8,
 		number: u32
@@ -409,7 +412,7 @@ impl Session {
 		})).collect()
 	}
 
-	fn generic_leaderboard(&mut self,
+	fn generic_leaderboard(&self,
 		params: &[(&str, &str)]
 	) -> Result<Vec<LeaderboardEntry>, Error> {
 		let json = self.request("leaderboard", params)?;
@@ -441,7 +444,7 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn country_leaderboard(&mut self,
+	pub fn country_leaderboard(&self,
 		country_code: &str,
 	) -> Result<Vec<LeaderboardEntry>, Error> {
 		self.generic_leaderboard(&[("cc", country_code)])
@@ -463,7 +466,7 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn global_leaderboard(&mut self) -> Result<Vec<LeaderboardEntry>, Error> {
+	pub fn global_leaderboard(&self) -> Result<Vec<LeaderboardEntry>, Error> {
 		self.generic_leaderboard(&[])
 	}
 
@@ -482,7 +485,7 @@ impl Session {
 	/// assert_eq!(score_info.max_combo, 1026);
 	/// # Ok(()) }
 	/// ```
-	pub fn score_data(&mut self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
+	pub fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
 		let json = self.request("score", &[("key", scorekey.as_ref())])?;
 		let json = json.singular_array_item()?;
 

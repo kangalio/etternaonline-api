@@ -53,7 +53,7 @@ impl EoRange for std::ops::RangeFull {
 
 pub struct Session {
 	// Rate limiting stuff
-	last_request: std::time::Instant,
+	last_request: std::cell::Cell<std::time::Instant>,
 	request_cooldown: std::time::Duration,
 
 	timeout: Option<std::time::Duration>,
@@ -66,16 +66,16 @@ impl Session {
 	) -> Self {
 		Self {
 			request_cooldown, timeout,
-			last_request: std::time::Instant::now() - request_cooldown,
+			last_request: std::cell::Cell::new(std::time::Instant::now() - request_cooldown),
 		}
 	}
 
-	fn request(&mut self,
+	fn request(&self,
 		method: &str,
 		path: &str,
 		request_callback: impl Fn(ureq::Request) -> ureq::Response,
 	) -> Result<ureq::Response, Error> {
-		crate::rate_limit(&mut self.last_request, self.request_cooldown);
+		crate::rate_limit(&self.last_request, self.request_cooldown);
 
 		let mut request = ureq::request(method, &format!("https://etternaonline.com/{}", path));
 		if let Some(timeout) = self.timeout {
@@ -87,7 +87,7 @@ impl Session {
 	}
 
 	/// Panics if the provided range is empty or negative
-	pub fn packlist(&mut self,
+	pub fn packlist(&self,
 		range_to_retrieve: impl EoRange,
 	) -> Result<Vec<PackEntry>, Error> {
 		let (start, length) = range_to_retrieve.start_length();
@@ -126,7 +126,7 @@ impl Session {
 	}
 
 	/// Panics if the provided range is empty or negative
-	pub fn leaderboard(&mut self,
+	pub fn leaderboard(&self,
 		range_to_retrieve: impl EoRange,
 	) -> Result<Vec<LeaderboardEntry>, Error> {
 		let (start, length) = range_to_retrieve.start_length();
@@ -173,7 +173,7 @@ impl Session {
 	}
 
 	/// Panics if the provided range is empty or negative
-	pub fn user_scores(&mut self,
+	pub fn user_scores(&self,
 		user_id: u32,
 		range_to_retrieve: impl EoRange,
 		sort_criterium: UserScoresSortBy,
@@ -282,7 +282,7 @@ impl Session {
 		})
 	}
 
-	pub fn user_details(&mut self, username: &str) -> Result<UserDetails, Error> {
+	pub fn user_details(&self, username: &str) -> Result<UserDetails, Error> {
 		let response = self.request("GET", &format!("user/{}", username), |mut r| r.call())?;
 		let response = response.into_string()?;
 
