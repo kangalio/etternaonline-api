@@ -36,16 +36,16 @@ impl Replay {
 		// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THESE VECTORS!!
 		let mut hit_seconds_columns = [vec![], vec![], vec![], vec![]];
 
-		for hit in self.notes.iter() {
-			if hit.lane? >= 4 { continue }
+		for note in self.notes.iter() {
+			if note.lane? >= 4 { continue }
 
-			if !(hit.note_type? == etterna::NoteType::Tap || hit.note_type? == etterna::NoteType::HoldHead) {
+			if !(note.note_type? == etterna::NoteType::Tap || note.note_type? == etterna::NoteType::HoldHead) {
 				continue;
 			}
 
-			note_seconds_columns[hit.lane? as usize].push(hit.time);
-			if let Some(deviation) = hit.deviation { // if it's not miss
-				hit_seconds_columns[hit.lane? as usize].push(hit.time + deviation);
+			note_seconds_columns[note.lane? as usize].push(note.time);
+			if let etterna::Hit::Hit { deviation } = note.hit {
+				hit_seconds_columns[note.lane? as usize].push(note.time + deviation);
 			}
 		}
 
@@ -63,14 +63,14 @@ impl Replay {
 		// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THESE VECTORS!!
 		let mut hit_seconds = Vec::with_capacity(self.notes.len());
 
-		for hit in self.notes.iter() {
-			if !(hit.note_type? == etterna::NoteType::Tap || hit.note_type? == etterna::NoteType::HoldHead) {
+		for note in self.notes.iter() {
+			if !(note.note_type? == etterna::NoteType::Tap || note.note_type? == etterna::NoteType::HoldHead) {
 				continue;
 			}
 
-			note_seconds.push(hit.time);
-			if let Some(deviation) = hit.deviation { // if it's not miss
-				hit_seconds.push(hit.time + deviation);
+			note_seconds.push(note.time);
+			if let etterna::Hit::Hit { deviation } = note.hit {
+				hit_seconds.push(note.time + deviation);
 			}
 		}
 
@@ -79,8 +79,8 @@ impl Replay {
 }
 
 impl etterna::SimpleReplay for Replay {
-	fn iter_deviations(&self) -> Box<dyn '_ + Iterator<Item = Option<f32>>> {
-		Box::new(self.notes.iter().map(|note| note.deviation))
+	fn iter_hits(&self) -> Box<dyn '_ + Iterator<Item = etterna::Hit>> {
+		Box::new(self.notes.iter().map(|note| note.hit))
 	}
 }
 
@@ -91,9 +91,8 @@ pub struct ReplayNote {
 	/// The position of the note inside the chart, in seconds. **Note: EO returns slightly incorrect
 	/// values here!**
 	pub time: f32,
-	/// The offset that the note was hit with, in seconds. A 50ms early hit would be `-0.05`. None
-	/// if miss
-	pub deviation: Option<f32>,
+	/// The offset that the note was hit with
+	pub hit: etterna::Hit,
 	/// The lane/column that this note appears on. 0-3 for 4k, 0-5 for 6k. None if not provided by
 	/// EO
 	pub lane: Option<u8>,
@@ -103,55 +102,50 @@ pub struct ReplayNote {
 	pub tick: Option<u32>,
 }
 
-impl ReplayNote {
-	pub fn is_miss(&self) -> bool {
-		self.deviation.is_none()
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
-	
-	#[test]
-	fn test_is_miss() {
-		let mut dummy_note = ReplayNote {
-			time: 0.0,
-			deviation: 0.15, // a late bad
-			tick: Some(0),
-			lane: 3,
-			note_type: NoteType::Tap,
-		};
-		assert!(!dummy_note.is_miss());
-
-		dummy_note.deviation = 0.19;
-		assert!(dummy_note.is_miss());
-	}
 
 	#[test]
 	fn test_split_replay() {
 		let replay = Replay { notes: vec![
-			ReplayNote { time: 0.0, deviation: 0.15, tick: None, lane: 0, note_type: NoteType::Tap },
-			ReplayNote { time: 1.0, deviation: -0.03, tick: None, lane: 1, note_type: NoteType::Tap },
-			ReplayNote { time: 2.0, deviation: 0.18, tick: None, lane: 2, note_type: NoteType::Tap },
-			ReplayNote { time: 3.0, deviation: 0.50, tick: None, lane: 3, note_type: NoteType::Tap },
-			ReplayNote { time: 4.0, deviation: 0.15, tick: None, lane: 0, note_type: NoteType::Tap },
+			ReplayNote { time: 0.0, hit: etterna::Hit::Hit { deviation: 0.15 }, lane: Some(0), note_type: Some(NoteType::Tap), tick: None},
+			ReplayNote { time: 1.0, hit: etterna::Hit::Hit { deviation: -0.03 }, lane: Some(1), note_type: Some(NoteType::Tap), tick: None},
+			ReplayNote { time: 2.0, hit: etterna::Hit::Miss, lane: Some(2), note_type: Some(NoteType::Tap), tick: None},
+			ReplayNote { time: 3.0, hit: etterna::Hit::Hit { deviation: 0.50 }, lane: Some(3), note_type: Some(NoteType::Tap), tick: None},
+			ReplayNote { time: 4.0, hit: etterna::Hit::Hit { deviation: 0.15 }, lane: Some(0), note_type: Some(NoteType::Tap), tick: None},
 		] };
 
 		assert_eq!(
 			replay.split_into_notes_and_hits(),
-			(
+			Some((
 				vec![0.0, 1.0, 2.0, 3.0, 4.0],
-				vec![0.15, 0.97, /* 2x omitted */ 4.15],
-			)
+				vec![0.15, 0.97, /* miss omitted */ 3.5, 4.15],
+			))
 		);
 
 		assert_eq!(
 			replay.split_into_lanes(),
-			(
+			Some((
 				[vec![0.0, 4.0], vec![1.0], vec![2.0], vec![3.0]],
-				[vec![0.15, 4.15], vec![0.97], vec![], vec![]],
-			)
+				[vec![0.15, 4.15], vec![0.97], vec![], vec![3.5]],
+			))
+		);
+
+		assert_eq!(
+			Replay { notes: vec![] }.split_into_notes_and_hits(),
+			Some((
+				vec![],
+				vec![],
+			))
+		);
+		
+		assert_eq!(
+			Replay { notes: vec![] }.split_into_lanes(),
+			Some((
+				[vec![], vec![], vec![], vec![]],
+				[vec![], vec![], vec![], vec![]],
+			))
 		);
 	}
 }

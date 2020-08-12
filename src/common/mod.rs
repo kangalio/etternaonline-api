@@ -52,19 +52,19 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 		// println!("{:?}", note_json);
 		ReplayNote {
 			time: note_json[0].f32_()?,
-			deviation: {
+			hit: {
 				let deviation = note_json[1].f32_()? / 1000.0;
 				if (deviation - 0.18).abs() < 0.0000001 {
-					None
+					etterna::Hit::Miss
 				} else {
-					Some(deviation)
+					etterna::Hit::Hit { deviation }
 				}
 			},
 			lane: match note_json.get(2) {
 				Some(json) => json.attempt_get("lane u8, maybe -1", |json| match json.as_i64()? {
 					-1 => Some(None),
 					lane @ 0..=255 => Some(Some(lane as u8)),
-					lane => None, // everything else is invalid
+					_ => None, // everything else is invalid
 				})?,
 				None => None,
 			},
