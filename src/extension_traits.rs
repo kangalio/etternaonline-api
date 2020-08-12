@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use crate::Error;
 
 pub(crate) trait ApiUnwrap<T> {
@@ -109,8 +111,12 @@ pub(crate) trait JsonValueExt: Sized {
 		self.attempt_get("u64", |j| j.as_u64())
 	}
 
+	fn i322_(&self) -> Result<i32, Error> {
+		self.attempt_get("i32", |j| Some(j.as_i64()?.try_into().ok()?))
+	}
+
 	fn u32_(&self) -> Result<u32, Error> {
-		Ok(self.u64_()? as u32)
+		self.attempt_get("u32", |j| Some(j.as_u64()?.try_into().ok()?))
 	}
 
 	fn f32_(&self) -> Result<f32, Error> {

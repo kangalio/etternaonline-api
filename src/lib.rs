@@ -12,15 +12,9 @@ Etterna terminology:
 - The score rating - which is variable depending on your wifescore - is called SSR:
   score-specific-rating
 
-The wifescores in this library are scaled to a maximum of `1.0`. This is means that a wifescore
-of 100% corresponds to a value of `1.0` (as opposed to `100.0`).
-
 # Usage
 For detailed usage documentation, see [`v1::Session`] and [`v2::Session`]
 */
-
-// THIS IS MY TODO LIST:
-// - Remove thiserror dependency
 
 mod extension_traits;
 #[macro_use] mod common;
@@ -100,19 +94,22 @@ fn rate_limit(
 	last_request.set(now);
 }
 
-// This only works with 4k replays at the moment! All notes beyond the first four columns are
-// discarded
+/// This only works with 4k replays at the moment! All notes beyond the first four columns are
+/// discarded
+/// 
+/// If the replay doesn't have sufficient information, None is returned (see
+/// [`Replay::split_into_lanes`])
 pub fn rescore<S, W>(
 	replay: &Replay,
 	num_hit_mines: u32,
 	num_dropped_holds: u32,
 	judge: &etterna::Judge,
-) -> etterna::Wifescore
+) -> Option<etterna::Wifescore>
 where
 	S: etterna::ScoringSystem,
 	W: etterna::Wife,
 {
-	let (mut note_seconds_columns, mut hit_seconds_columns) = replay.split_into_lanes();
+	let (mut note_seconds_columns, mut hit_seconds_columns) = replay.split_into_lanes()?;
 
 	// Yes it's correct that I'm sorting the two lists separately, and yes it's correct
 	// that with that, their ordering won't be the same anymore. This is all okay, because that's
@@ -121,11 +118,11 @@ where
 	for column in &mut note_seconds_columns { sort(column); }
 	for column in &mut hit_seconds_columns { sort(column); }
 
-	etterna::rescore::<S, W>(
+	Some(etterna::rescore::<S, W>(
 		&note_seconds_columns,
 		&hit_seconds_columns,
 		num_hit_mines,
 		num_dropped_holds,
 		judge,
-	)
+	))
 }

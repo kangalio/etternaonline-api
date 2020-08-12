@@ -76,6 +76,7 @@ impl Session {
 		}
 
 		let response = request.call().into_string()?;
+		// println!("{}", response); // REMEMBER
 		let json: serde_json::Value = serde_json::from_str(&response)?;
 
 		if let Some(error) = json["error"].as_str() {
@@ -254,7 +255,7 @@ impl Session {
 			user: User {
 				username: json["username"].string()?,
 				avatar: json["avatar"].string()?,
-				country_code: json["countrycode"].string()?,
+				country_code: json["countrycode"].string_maybe()?,
 				rating: json["player_rating"].f32_string()?,
 			},
 			replay: crate::common::parse_replay(&json["replay"])?,
@@ -521,7 +522,7 @@ impl Session {
 			user: User {
 				username: json["username"].string()?,
 				avatar: json["avatar"].string()?,
-				country_code: json["countrycode"].string()?,
+				country_code: json["countrycode"].string_maybe()?,
 				rating: json["player_rating"].f32_string()?,
 			},
 			replay: crate::common::parse_replay(&json["replay"])?,

@@ -1,4 +1,4 @@
-#[doc(no_inline)]
+#[doc(inline)]
 pub use crate::common::structs::*;
 
 /// Details about a user. See [`Session::user_details`](super::Session::user_details)

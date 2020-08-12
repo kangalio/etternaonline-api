@@ -2,6 +2,16 @@
 pub use etterna::structs::*;
 
 /// Replay data, contains [`ReplayNote`]
+/// 
+/// Some replays don't have tick information. Some replays have neither tick nor note type
+/// information. Some replays have neither tick nor note type nor lane information.
+/// 
+/// There _are_ some guarantees (judging after expirementation with EO):
+/// - If one replay note has a certain piece of data, all other replay notes in that replay will
+///   will also have that piece of data.
+/// - If a replay has note type information, it will definitely also have lane information. <br/>
+///   If a replay has tick information, it will definitely also have both note type and lane
+///   information.
 #[derive(Debug, PartialEq, Clone, Default)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub struct Replay {
@@ -19,38 +29,42 @@ impl Replay {
 	/// 
 	/// If this replay file adheres to the usual Etterna replay ordering, the second lists (hits)
 	/// will be sorted ascendingly.
-	pub fn split_into_lanes(&self) -> ([Vec<f32>; 4], [Vec<f32>; 4]) {
+	/// 
+	/// If this replay doesn't have lane and note_type information, None is returned.
+	pub fn split_into_lanes(&self) -> Option<([Vec<f32>; 4], [Vec<f32>; 4])> {
 		let mut note_seconds_columns = [vec![], vec![], vec![], vec![]];
 		// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THESE VECTORS!!
 		let mut hit_seconds_columns = [vec![], vec![], vec![], vec![]];
 
 		for hit in self.notes.iter() {
-			if hit.lane >= 4 { continue }
+			if hit.lane? >= 4 { continue }
 
-			if !(hit.note_type == etterna::NoteType::Tap || hit.note_type == etterna::NoteType::HoldHead) {
+			if !(hit.note_type? == etterna::NoteType::Tap || hit.note_type? == etterna::NoteType::HoldHead) {
 				continue;
 			}
 
-			note_seconds_columns[hit.lane as usize].push(hit.time);
+			note_seconds_columns[hit.lane? as usize].push(hit.time);
 			if let Some(deviation) = hit.deviation { // if it's not miss
-				hit_seconds_columns[hit.lane as usize].push(hit.time + deviation);
+				hit_seconds_columns[hit.lane? as usize].push(hit.time + deviation);
 			}
 		}
 
-		(note_seconds_columns, hit_seconds_columns)
+		Some((note_seconds_columns, hit_seconds_columns))
 	}
 
 	/// Like [`Self::split_into_lanes`], but it doesn't split by lane. Instead, everything is put
 	/// into one big vector instead.
 	/// 
 	/// Even non-4k notes are included in this function's result!
-	pub fn split_into_notes_and_hits(&self) -> (Vec<f32>, Vec<f32>) {
+	/// 
+	/// If this replay doesn't have note type information, None is returned.
+	pub fn split_into_notes_and_hits(&self) -> Option<(Vec<f32>, Vec<f32>)> {
 		let mut note_seconds = Vec::with_capacity(self.notes.len());
 		// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THESE VECTORS!!
 		let mut hit_seconds = Vec::with_capacity(self.notes.len());
 
 		for hit in self.notes.iter() {
-			if !(hit.note_type == etterna::NoteType::Tap || hit.note_type == etterna::NoteType::HoldHead) {
+			if !(hit.note_type? == etterna::NoteType::Tap || hit.note_type? == etterna::NoteType::HoldHead) {
 				continue;
 			}
 
@@ -60,7 +74,7 @@ impl Replay {
 			}
 		}
 
-		(note_seconds, hit_seconds)
+		Some((note_seconds, hit_seconds))
 	}
 }
 
@@ -80,12 +94,13 @@ pub struct ReplayNote {
 	/// The offset that the note was hit with, in seconds. A 50ms early hit would be `-0.05`. None
 	/// if miss
 	pub deviation: Option<f32>,
-	/// The position of the ntoe inside the chart, in ticks (192nds)
+	/// The lane/column that this note appears on. 0-3 for 4k, 0-5 for 6k. None if not provided by
+	/// EO
+	pub lane: Option<u8>,
+	/// Type of the note (tap, hold, mine etc.). None if not provided by EO
+	pub note_type: Option<NoteType>,
+	/// The position of the note inside the chart, in ticks (192nds). None if not provided by EO
 	pub tick: Option<u32>,
-	/// The lane/column that this note appears on. 0-3 for 4k, 0-5 for 6k
-	pub lane: u8,
-	/// Type of the note (tap, hold, mine etc.)
-	pub note_type: NoteType,
 }
 
 impl ReplayNote {

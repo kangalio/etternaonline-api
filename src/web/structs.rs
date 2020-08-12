@@ -1,4 +1,4 @@
-#[doc(no_inline)]
+#[doc(inline)]
 pub use crate::common::structs::*;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -32,10 +32,10 @@ pub struct Country {
 }
 
 pub struct UserScores {
-	/// Player's total number of scores
-	pub total_scores: u32,
-	/// Player's total number of scores after applying the selected filter criteria
-	pub total_filtered_scores: u32,
+	/// Number of scores matching selected criteria except search query
+	pub entries_before_search_filtering: u32,
+	/// Number of scores matching all criteria including search query
+	pub entries_after_search_filtering: u32,
 	/// The range of scores that was requested
 	pub scores: Vec<UserScore>,
 }
@@ -88,16 +88,56 @@ pub struct UserDetails {
 	pub user_id: u32,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub enum UserScoresSortBy {
-	SongName, Rate, SsrOverall, Wifescore, NerfedWifescore, Date,
+	SongName, Rate, SsrOverall, SsrOverallNerfed, Wifescore, Date,
 	Stream, Jumpstream, Handstream, Stamina, Jacks, Chordjacks, Technical,
 	ChordCohesion, Scorekey,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub enum SortDirection {
 	Descending, Ascending,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+pub struct ChartLeaderboard {
+	/// Number of scores matching selected criteria except search query
+	pub entries_before_search_filtering: u32,
+	/// Number of scores matching all criteria including search query
+	pub entries_after_search_filtering: u32,
+	/// Requested subset of the leaderboard entries
+	pub entries: Vec<ChartLeaderboardEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+pub struct ChartLeaderboardEntry {
+	pub username: String,
+	pub scorekey: Scorekey,
+	pub user_id: u32,
+	pub ssr_overall: f32,
+	pub ssr_overall_nerfed: f32,
+	pub rate: Rate,
+	pub wifescore: Wifescore,
+	pub date: String,
+	pub judgements: TapJudgements,
+	pub max_combo: u32,
+}
+
+impl ChartLeaderboardEntry {
+	/// Generate a link to this score's score page
+	pub fn score_link(&self) -> String {
+		format!("https://etternaonline.com/score/view/{}{}", self.scorekey, self.user_id)
+	}
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+pub enum ChartLeaderboardSortBy {
+	Username, SsrOverall, Rate, Wife, Date, MaxCombo, Scorekey,
+	Marvelouses, Perfects, Greats, Goods, Bads, Misses,
 }

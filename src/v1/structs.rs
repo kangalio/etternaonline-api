@@ -1,4 +1,4 @@
-#[doc(no_inline)]
+#[doc(inline)]
 pub use crate::common::structs::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -70,7 +70,7 @@ pub struct ChartLeaderboardEntry {
 pub struct User {
 	pub username: String,
 	pub avatar: String,
-	pub country_code: String,
+	pub country_code: Option<String>,
 	pub rating: f32,
 }
 

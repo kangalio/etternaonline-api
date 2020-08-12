@@ -44,9 +44,12 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 	};
 
 	let json: serde_json::Value = serde_json::from_str(replay_str)?;
+	
+	// println!("{}", serde_json::to_string_pretty(&json).unwrap());
 
 	let notes = json.array()?.iter().map(|note_json| Ok({
 		let note_json = note_json.array()?;
+		// println!("{:?}", note_json);
 		ReplayNote {
 			time: note_json[0].f32_()?,
 			deviation: {
@@ -57,14 +60,30 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 					Some(deviation)
 				}
 			},
-			lane: note_json[2].u32_()? as u8,
-			note_type: note_type_from_eo(&note_json[3])?,
+			lane: match note_json.get(2) {
+				Some(json) => json.attempt_get("lane u8, maybe -1", |json| match json.as_i64()? {
+					-1 => Some(None),
+					lane @ 0..=255 => Some(Some(lane as u8)),
+					lane => None, // everything else is invalid
+				})?,
+				None => None,
+			},
+			note_type: match note_json.get(3) {
+				Some(json) => Some(note_type_from_eo(json)?),
+				None => None,
+			},
 			tick: match note_json.get(4) { // it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
 				Some(x) => Some(x.u32_()?),
 				None => None,
 			},
 		}
 	})).collect::<Result<Vec<ReplayNote>, Error>>()?;
+
+	// I encountered this on the following Grief & Malice score:
+	// https://etternaonline.com/score/view/S0a7d27562ee566ae445ee08fc0b4a182d0ad6cfb3358
+	if notes.len() == 0 {
+		return Ok(None);
+	}
 
 	Ok(Some(Replay { notes }))
 }

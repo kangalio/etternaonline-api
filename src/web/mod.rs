@@ -22,7 +22,7 @@ impl EoRange for std::ops::Range<u32> {
 
 impl EoRange for std::ops::RangeInclusive<u32> {
 	fn start_length(&self) -> (u32, u32) {
-		match self.end().saturating_sub(*self.start()) {
+		match (self.end() + 1).saturating_sub(*self.start()) {
 			0 => panic!("Range cannot be empty or negative: {:?}", self),
 			length => (*self.start(), length),
 		}
@@ -176,42 +176,44 @@ impl Session {
 	pub fn user_scores(&self,
 		user_id: u32,
 		range_to_retrieve: impl EoRange,
+		song_name_search_query: Option<&str>,
 		sort_criterium: UserScoresSortBy,
 		sort_direction: SortDirection,
 		include_invalid: bool,
 	) -> Result<UserScores, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self.request("POST", "score/userScores", |mut r| r.send_form(&[
-			("start", &start.to_string()),
-			("length", &length.to_string()),
-			("userid", &user_id.to_string()),
-			("draw", match include_invalid {
-				true => "7",
-				false => "8",
-			}),
-			("order[0][dir]", match sort_direction {
-				SortDirection::Ascending => "asc",
-				SortDirection::Descending => "desc",
-			}),
-			("order[0][column]", match sort_criterium {
-				UserScoresSortBy::SongName => "0",
-				UserScoresSortBy::Rate => "1",
-				UserScoresSortBy::SsrOverall => "2",
-				UserScoresSortBy::Wifescore => "3",
-				UserScoresSortBy::NerfedWifescore => "4",
-				UserScoresSortBy::Date => "5",
-				UserScoresSortBy::Stream => "6",
-				UserScoresSortBy::Jumpstream => "7",
-				UserScoresSortBy::Handstream => "8",
-				UserScoresSortBy::Stamina => "9",
-				UserScoresSortBy::Jacks => "10",
-				UserScoresSortBy::Chordjacks => "11",
-				UserScoresSortBy::Technical => "12",
-				UserScoresSortBy::ChordCohesion => "13",
-				UserScoresSortBy::Scorekey => "",
-			})
-		]))?.into_json()?;
+		let json = self.request(
+			"POST",
+			if include_invalid { "score/userScores" } else { "valid_score/userScores" },
+			|mut r| r.send_form(&[
+				("start", &start.to_string()),
+				("length", &length.to_string()),
+				("userid", &user_id.to_string()),
+				("order[0][dir]", match sort_direction {
+					SortDirection::Ascending => "asc",
+					SortDirection::Descending => "desc",
+				}),
+				("order[0][column]", match sort_criterium {
+					UserScoresSortBy::SongName => "0",
+					UserScoresSortBy::Rate => "1",
+					UserScoresSortBy::SsrOverall => "2",
+					UserScoresSortBy::SsrOverallNerfed => "3",
+					UserScoresSortBy::Wifescore => "4",
+					UserScoresSortBy::Date => "5",
+					UserScoresSortBy::Stream => "6",
+					UserScoresSortBy::Jumpstream => "7",
+					UserScoresSortBy::Handstream => "8",
+					UserScoresSortBy::Stamina => "9",
+					UserScoresSortBy::Jacks => "10",
+					UserScoresSortBy::Chordjacks => "11",
+					UserScoresSortBy::Technical => "12",
+					UserScoresSortBy::ChordCohesion => "13",
+					UserScoresSortBy::Scorekey => "",
+				}),
+				("search[value]", song_name_search_query.unwrap_or("")),
+			])
+		)?.into_json()?;
 
 		let scores = json["data"].array()?.iter().map(|json| Ok(UserScore {
 			song_name: json["songname"].attempt_get("song name", |j| Some(j
@@ -276,8 +278,8 @@ impl Session {
 		})).collect::<Result<Vec<UserScore>, Error>>()?;
 
 		Ok(UserScores {
-			total_scores: json["recordsTotal"].u32_()?,
-			total_filtered_scores: json["recordsFiltered"].u32_()?,
+			entries_before_search_filtering: json["recordsTotal"].u32_()?,
+			entries_after_search_filtering: json["recordsFiltered"].u32_()?,
 			scores,
 		})
 	}
@@ -289,6 +291,95 @@ impl Session {
 		Ok(UserDetails {
 			user_id: (|| response.as_str().extract("'userid': '", "'")?.parse().ok())()
 				.ok_or_else(|| Error::UnexpectedResponse("No userid found in user page".to_owned()))?,
+		})
+	}
+
+	/// `all_rates` - if true, show users' scores for all rates instead of just their best score
+	pub fn chart_leaderboard(&self,
+		chartkey: impl AsRef<str>,
+		range_to_retrieve: impl EoRange,
+		user_name_search_query: Option<&str>,
+		sort_criterium: ChartLeaderboardSortBy,
+		sort_direction: SortDirection,
+		all_rates: bool,
+		include_invalid: bool,
+	) -> Result<ChartLeaderboard, Error> {
+		let (start, length) = range_to_retrieve.start_length();
+
+		let json = self.request(
+			"POST",
+			match include_invalid {
+				true => "score/chartOverallScores",
+				false => "valid_score/chartOverallScores",
+			},
+			|mut r| r.send_form(&[
+				("start", &start.to_string()),
+				("length", &length.to_string()),
+				("chartkey", chartkey.as_ref()),
+				("top", if all_rates { "" } else { "true" }),
+				("order[0][dir]", match sort_direction {
+					SortDirection::Ascending => "asc",
+					SortDirection::Descending => "desc",
+				}),
+				("order[0][column]", match sort_criterium {
+					ChartLeaderboardSortBy::Username => "1",
+					ChartLeaderboardSortBy::SsrOverall => "2",
+					ChartLeaderboardSortBy::Rate => "4",
+					ChartLeaderboardSortBy::Wife => "5",
+					ChartLeaderboardSortBy::Date => "6",
+					ChartLeaderboardSortBy::Marvelouses => "7",
+					ChartLeaderboardSortBy::Perfects => "8",
+					ChartLeaderboardSortBy::Greats => "9",
+					ChartLeaderboardSortBy::Goods => "10",
+					ChartLeaderboardSortBy::Bads => "11",
+					ChartLeaderboardSortBy::Misses => "12",
+					ChartLeaderboardSortBy::MaxCombo => "13",
+					ChartLeaderboardSortBy::Scorekey => "",
+				}),
+				("search[value]", user_name_search_query.unwrap_or("")),
+			])
+		)?.into_json()?;
+
+		Ok(ChartLeaderboard {
+			entries_before_search_filtering: json["recordsTotal"].u32_()?,
+			entries_after_search_filtering: json["recordsFiltered"].u32_()?,
+			entries: json["data"].array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
+				// turns out this is actually not a rank but just an index, i.e. if you sort by
+				// date, rank #1 would be the latest score, not the best score. _That_ kind of rank
+				// is pretty useless so let's not parse it to not confuse users about what this is
+				// rank: json.attempt_get("rank string", |json| {
+				// 	let s = json["rank"].as_str()?;
+				// 	if &s[0..1] != "#" { return None; }
+				// 	Some(s[1..].parse::<u32>().ok()? - 1)
+				// })?,
+				date: json["date"].string()?,
+				judgements: TapJudgements {
+					marvelouses: json["marv"].u32_string()?,
+					perfects: json["perfect"].u32_string()?,
+					greats: json["great"].u32_string()?,
+					goods: json["good"].u32_string()?,
+					bads: json["bad"].u32_string()?,
+					misses: json["miss"].u32_string()?,
+				},
+				max_combo: json["combo"].u32_string()?,
+				rate: json["rate"].rate_string()?,
+				ssr_overall: json["score"].attempt_get("SSR from score html", |json| Some(
+					json.as_str()?.extract("\">", "<")?.parse().ok()?
+				))?,
+				ssr_overall_nerfed: json["nerf"].f32_()?,
+				scorekey: json["score"].attempt_get("scorekey from score html", |json| {
+					Some(json.as_str()?.extract("view/", "\"")?[..41].parse().ok()?)
+				})?,
+				user_id: json["score"].attempt_get("scorekey from score html", |json| {
+					Some(json.as_str()?.extract("view/", "\"")?[41..].parse().ok()?)
+				})?,
+				username: json["username"].attempt_get("username from username html", |json| Some(
+					json.as_str()?.extract("user/", "\"")?.to_owned()
+				))?,
+				wifescore: json["wife"].attempt_get("wifescore from wife html", |json| Some(
+					Wifescore::from_percent(json.as_str()?.extract(">", "%")?.parse::<f32>().ok()?)?
+				))?,
+			})).collect::<Result<Vec<_>, Error>>()?,
 		})
 	}
 }
