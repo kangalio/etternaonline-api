@@ -288,8 +288,12 @@ impl Session {
 		let response = self.request("GET", &format!("user/{}", username), |mut r| r.call())?;
 		let response = response.into_string()?;
 
+		if response.contains("Looks like the page you want, aint here.") {
+			return Err(Error::UserNotFound);
+		}
+
 		Ok(UserDetails {
-			user_id: (|| response.as_str().extract("'userid': '", "'")?.parse().ok())()
+			user_id: (|| response.as_str().extract("'userid': '", "'")?.parse().ok())()	
 				.ok_or_else(|| Error::UnexpectedResponse("No userid found in user page".to_owned()))?,
 		})
 	}
