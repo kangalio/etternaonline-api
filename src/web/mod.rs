@@ -288,7 +288,11 @@ impl Session {
 		let response = self.request("GET", &format!("user/{}", username), |mut r| r.call())?;
 		let response = response.into_string()?;
 
-		if response.contains("Looks like the page you want, aint here.") {
+		if response.contains("Looks like the page you want, aint here.")
+			|| response.contains("disallowed characters") // if username has funky chars
+			|| response.contains("\"errors\":[]") // if username is empty
+			|| response.is_empty() // or idek
+		{
 			return Err(Error::UserNotFound);
 		}
 
