@@ -316,9 +316,10 @@ impl Session {
 
 		let json = self.request(
 			"POST",
-			match include_invalid {
-				true => "score/chartOverallScores",
-				false => "valid_score/chartOverallScores",
+			if include_invalid {
+				"score/chartOverallScores"
+			} else {
+				"valid_score/chartOverallScores"
 			},
 			|mut r| r.send_form(&[
 				("start", &start.to_string()),

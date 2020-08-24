@@ -822,13 +822,15 @@ impl Session {
 		Ok(())
 	}
 	
-	/*pub*/ fn pack_list(&self) -> Result<(), Error> {
-		let json = self.request("GET", "packs", |mut r| r.call())?;
+	// Let's find out how this works and properly implement it, when I finally find out how to login
+	// into the fucking v2 API again >:(
+	// pub fn pack_list(&self) -> Result<(), Error> {
+	// 	let json = self.request("GET", "packs", |mut r| r.call())?;
 
-		println!("{:#?}", json);
+	// 	println!("{:#?}", json);
 
-		Ok(())
-	}
+	// 	Ok(())
+	// }
 
 	// pub fn test(&self) -> Result<(), Error> {
 		// let best_score = &self.user_top_10_scores("kangalioo")?[0];

@@ -148,8 +148,6 @@ impl<T> AuthorizationManager<T> {
         // This will block if a mutable lock is active, i.e. another thread
         // is logging in right now. So we will wait until the other thread
         // finished logging in to get its new fresh authorization value
-        let guard = self.lock.read().unwrap();
-        
-        guard
+        self.lock.read().unwrap()
     }
 }
