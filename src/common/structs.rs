@@ -31,10 +31,13 @@ impl Replay {
 	/// will be sorted ascendingly.
 	/// 
 	/// If this replay doesn't have lane and note_type information, None is returned.
-	pub fn split_into_lanes(&self) -> Option<([Vec<f32>; 4], [Vec<f32>; 4])> {
-		let mut note_seconds_columns = [vec![], vec![], vec![], vec![]];
-		// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THESE VECTORS!!
-		let mut hit_seconds_columns = [vec![], vec![], vec![], vec![]];
+	pub fn split_into_lanes(&self) -> Option<[NoteAndHitSeconds; 4]> {
+		let mut lanes = [
+			NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+			NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+			NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+			NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+		];
 
 		for note in self.notes.iter() {
 			if note.lane? >= 4 { continue }
@@ -43,13 +46,13 @@ impl Replay {
 				continue;
 			}
 
-			note_seconds_columns[note.lane? as usize].push(note.time);
+			lanes[note.lane? as usize].note_seconds.push(note.time);
 			if let etterna::Hit::Hit { deviation } = note.hit {
-				hit_seconds_columns[note.lane? as usize].push(note.time + deviation);
+				lanes[note.lane? as usize].hit_seconds.push(note.time + deviation);
 			}
 		}
 
-		Some((note_seconds_columns, hit_seconds_columns))
+		Some(lanes)
 	}
 
 	/// Like [`Self::split_into_lanes`], but it doesn't split by lane. Instead, everything is put
@@ -58,23 +61,24 @@ impl Replay {
 	/// Even non-4k notes are included in this function's result!
 	/// 
 	/// If this replay doesn't have note type information, None is returned.
-	pub fn split_into_notes_and_hits(&self) -> Option<(Vec<f32>, Vec<f32>)> {
-		let mut note_seconds = Vec::with_capacity(self.notes.len());
-		// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THESE VECTORS!!
-		let mut hit_seconds = Vec::with_capacity(self.notes.len());
+	pub fn split_into_notes_and_hits(&self) -> Option<NoteAndHitSeconds> {
+		let mut result = NoteAndHitSeconds {
+			note_seconds: Vec::with_capacity(self.notes.len()),
+			hit_seconds: Vec::with_capacity(self.notes.len()),
+		};
 
 		for note in self.notes.iter() {
 			if !(note.note_type? == etterna::NoteType::Tap || note.note_type? == etterna::NoteType::HoldHead) {
 				continue;
 			}
 
-			note_seconds.push(note.time);
+			result.note_seconds.push(note.time);
 			if let etterna::Hit::Hit { deviation } = note.hit {
-				hit_seconds.push(note.time + deviation);
+				result.hit_seconds.push(note.time + deviation);
 			}
 		}
 
-		Some((note_seconds, hit_seconds))
+		Some(result)
 	}
 }
 

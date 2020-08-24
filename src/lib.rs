@@ -1,4 +1,4 @@
-#![allow(clippy::tabs_in_doc_comments, clippy::match_bool)]
+#![allow(clippy::len_zero, clippy::tabs_in_doc_comments, clippy::collapsible_if, clippy::needless_bool, clippy::too_many_arguments)]
 
 /*!
 This crate provides an ergonomic wrapper around the v1, v2 and web API of
@@ -109,18 +109,19 @@ where
 	S: etterna::ScoringSystem,
 	W: etterna::Wife,
 {
-	let (mut note_seconds_columns, mut hit_seconds_columns) = replay.split_into_lanes()?;
+	let mut lanes = replay.split_into_lanes()?;
 
 	// Yes it's correct that I'm sorting the two lists separately, and yes it's correct
 	// that with that, their ordering won't be the same anymore. This is all okay, because that's
 	// how the rescorers accept their data and how they work.
 	let sort = |slice: &mut [f32]| slice.sort_by(|a, b| a.partial_cmp(b).unwrap());
-	for column in &mut note_seconds_columns { sort(column); }
-	for column in &mut hit_seconds_columns { sort(column); }
+	for lane in lanes.iter_mut() {
+		sort(&mut lane.note_seconds);
+		sort(&mut lane.hit_seconds);
+	}
 
 	Some(etterna::rescore::<S, W>(
-		&note_seconds_columns,
-		&hit_seconds_columns,
+		&lanes,
 		num_hit_mines,
 		num_dropped_holds,
 		judge,
