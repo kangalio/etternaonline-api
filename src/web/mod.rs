@@ -226,7 +226,7 @@ impl Session {
 				.extract("song/view/", "\"")?
 				.parse().ok()?
 			))?,
-			scorekey: json["scorekey"].scorekey_string()?,
+			// scorekey: json["scorekey"].scorekey_string()?, // this disappeared
 			rate: json["user_chart_rate_rate"].rate_string()?,
 			wifescore: json["wifescore"].attempt_get("wifescore", |j| Some(
 				etterna::Wifescore::from_percent(j
@@ -253,16 +253,23 @@ impl Session {
 				"Off" => Some(false),
 				_ => None,
 			})?,
-			user_id_and_ssr: if json["Overall"].str_()?.contains("Invalid Score") {
+			validity_dependant: if json["Overall"].str_()?.contains("Invalid Score") {
 				None
 			} else {
 				Some(ValidUserScoreInfo {
+					scorekey: json["Overall"].attempt_get("user id", |j| Some(j
+						.as_str()?
+						.extract("score/view/", "\"")?
+						[..41]
+						.parse().ok()?
+					))?,
 					user_id: json["Overall"].attempt_get("user id", |j| Some(j
 						.as_str()?
 						.extract("score/view/", "\"")?
 						[41..]
 						.parse().ok()?
 					))?,
+					// The following are zero if the score is invalid
 					ssr: etterna::ChartSkillsets {
 						stream: json["stream"].f32_string()?,
 						jumpstream: json["jumpstream"].f32_string()?,

@@ -45,8 +45,9 @@ pub struct UserScores {
 pub struct UserScore {
 	pub song_name: String,
 	pub song_id: u32,
-	pub scorekey: Scorekey,
-	pub user_id_and_ssr: Option<ValidUserScoreInfo>,
+	/// This is data that is only present if the score is valid. You can also check score validity
+	/// by calling `user_score.validity_dependant.is_some()`
+	pub validity_dependant: Option<ValidUserScoreInfo>,
 	pub rate: Rate,
 	pub wifescore: Wifescore,
 	pub judgements: TapJudgements,
@@ -61,6 +62,7 @@ pub struct ValidUserScoreInfo {
 	pub user_id: u32,
 	pub ssr: ChartSkillsets,
 	pub ssr_overall_nerfed: f32,
+	pub scorekey: Scorekey,
 }
 
 impl ValidUserScoreInfo {
