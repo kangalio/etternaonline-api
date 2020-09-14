@@ -115,30 +115,46 @@ impl<T> AuthorizationManager<T> {
     /// If another thread is refreshing right now too, this function will simply
     /// wait until the other thread is finished and then return without having
     /// called the closure.
-    pub fn refresh<E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<(), E> {
+	pub fn refresh<E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<(), E> {
+		println!("STARTING REFRESH PROCESS");
+
+		let thread_id = std::thread::current().id();
+
         // We lock until we've decided how to proceed (login? wait for other
-        // thread?), so that other refresh calls can't interfere
+		// thread?), so that other refresh calls can't interfere
+		println!("{:?} Locking refresh_checking mutex until we've decided how to progress", thread_id);
         let refresh_guard = self.refresh_checking_mutex.lock().unwrap();
     
         if try_lock_immutable(&self.lock).is_some() {
+			println!("{:?} We can lock the authorization RwLock immutably so we're the only ones to attempt login", thread_id);
             // If we can lock immutably, that means that at max there'll be
             // get_authorization calls active right now
             
             // So let's wait (block) for those calls to finish, and then login
             // and insert the new authoriziation token
-            drop(refresh_guard);
-            let mut write_guard = self.lock.write().unwrap();
-            *write_guard = (f)()?;
+			drop(refresh_guard);
+			println!("{:?} Waiting for get_authorization calls to finish (if any)", thread_id);
+			let mut write_guard = self.lock.write().unwrap();
+			println!("{:?} get_authorization calls are done, now let's login and write into the lock", thread_id);
+			*write_guard = (f)()?;
+			println!("{:?} successfully wrote new token into lock", thread_id);
         } else {
+			println!("{:?} We can't lock the authorization RwLock immutably which means some other \
+				thread is holding a mutable lock and currently doing a login request, waiting \
+				until we can...", thread_id);
+
             // If we can't lock immutably, another thread is logging in right
             // now. So let's wait for them and then just return - there's
             // nothing to do anymore because the other thread has done our login
             // work
 			drop(self.lock.read().unwrap());
+
+			println!("{:?} Ok we're done waiting for the other thread to do the login request :)", thread_id);
 			
             drop(refresh_guard);
         }
-        
+		
+		println!("FINISHED REFRESH PROCESS");
         Ok(())
     }
     
