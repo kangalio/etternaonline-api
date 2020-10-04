@@ -75,7 +75,7 @@ fn parse_score_data_user_2(json: &serde_json::Value) -> Result<ScoreUser, Error>
 
 /// EtternaOnline API session client, handles all requests to and from EtternaOnline.
 /// 
-/// This wrapper keeps cares of expiring tokens by automatically logging back in when the login
+/// This wrapper keeps care of expiring tokens by automatically logging back in when the login
 /// token expires.
 /// 
 /// This session has rate-limiting built-in. Please do make use of it - the EO server is brittle and
@@ -235,17 +235,16 @@ impl Session {
 			}
 		};
 
+		if status >= 500 {
+			return Err(Error::ServerIsDown);
+		}
+
+		// only parse json if the response code is not 5xx because on 5xx response codes, the server
+		// sometimes sends empty responses
 		let mut json: serde_json::Value = serde_json::from_str(&response)?;
 		
 		// Error handling
 		if status >= 400 {
-			// BAHAHAHAHAHA I just got these three response codes _right in a row_ xDD
-			// > Hit run -> "Unexpected 521" -> Add 521 special case -> hit run -> "Unexpected 503"
-			// > -> Add 503 special case -> hit run -> "Unexpected 525" -> Add 525 special case
-			if status == 521 || status == 503 || status == 525 {
-				return Err(Error::ServerIsDown);
-			}
-
 			return match json["errors"][0]["title"].str_()? {
 				"Unauthorized" => {
 					// Token expired, let's login again and retry
