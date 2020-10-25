@@ -324,13 +324,13 @@ impl Session {
 		let json = self.get(url)?;
 
 		json.array()?.iter().map(|json| Ok(TopScore {
-			scorekey: json["id"].scorekey_string()?,
+			scorekey: json["id"].parse()?,
 			song_name: json["attributes"]["songName"].string()?,
 			ssr_overall: json["attributes"]["Overall"].f32_()?,
 			wifescore: json["attributes"]["wife"].wifescore_percent_float()?,
 			rate: json["attributes"]["rate"].rate_float()?,
-			difficulty: json["attributes"]["difficulty"].difficulty_string()?,
-			chartkey: json["attributes"]["chartKey"].chartkey_string()?,
+			difficulty: json["attributes"]["difficulty"].parse()?,
+			chartkey: json["attributes"]["chartKey"].parse()?,
 			base_msd: chart_skillsets_from_eo(&json["attributes"]["skillsets"])?,
 		})).collect()
 	}
@@ -398,7 +398,7 @@ impl Session {
 		let json = self.get(&format!("user/{}/latest", username))?;
 
 		json.array()?.iter().map(|json| Ok(LatestScore {
-			scorekey: json["id"].scorekey_string()?,
+			scorekey: json["id"].parse()?,
 			song_name: json["attributes"]["songName"].string()?,
 			ssr_overall: json["attributes"]["Overall"].f32_()?,
 			wifescore: json["attributes"]["wife"].wifescore_percent_float()?,
@@ -462,8 +462,8 @@ impl Session {
 				song_name: json["songname"].string()?,
 				rate: json["user_chart_rate_rate"].rate_float()?,
 				wifescore: json["wifescore"].wifescore_proportion_float()?,
-				chartkey: json["chartkey"].chartkey_string()?,
-				scorekey: json["scorekey"].scorekey_string()?,
+				chartkey: json["chartkey"].parse()?,
+				scorekey: json["scorekey"].parse()?,
 				difficulty: difficulty_from_eo(json["difficulty"].str_()?)?,
 				ssr: chart_skillsets_from_eo(&json)?,
 			})).collect()
@@ -499,7 +499,7 @@ impl Session {
 	pub fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
 		let json = self.get(&format!("score/{}", scorekey.as_ref()))?;
 
-		let scorekey = json["id"].scorekey_string()?;
+		let scorekey = json["id"].parse()?;
 		let json = &json["attributes"];
 
 		Ok(ScoreData {
@@ -540,7 +540,7 @@ impl Session {
 		let json = self.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))?;
 
 		json.array()?.iter().map(|json| Ok(ChartLeaderboardScore {
-			scorekey: json["id"].scorekey_string()?,
+			scorekey: json["id"].parse()?,
 			wifescore: json["attributes"]["wife"].wifescore_percent_float()?,
 			max_combo: json["attributes"]["maxCombo"].u32_()?,
 			is_valid: json["attributes"]["valid"].bool_()?,
@@ -691,7 +691,7 @@ impl Session {
 		let json = self.get(&format!("user/{}/goals", username))?;
 
 		json.array()?.iter().map(|json| Ok(ScoreGoal {
-				chartkey: json["attributes"]["chartkey"].chartkey_string()?,
+				chartkey: json["attributes"]["chartkey"].parse()?,
 				rate: json["attributes"]["rate"].rate_float()?,
 				wifescore: json["attributes"]["wife"].wifescore_proportion_float()?,
 				time_assigned: json["attributes"]["timeAssigned"].string()?,

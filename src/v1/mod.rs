@@ -1,21 +1,19 @@
 mod structs;
 pub use structs::*;
 
-use etterna::*;
-
 use crate::Error;
 use crate::extension_traits::*;
 
 
 fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::UserSkillsets, Error> {
 	Ok(etterna::UserSkillsets {
-		stream: json["Stream"].f32_string()?,
-		jumpstream: json["Jumpstream"].f32_string()?,
-		handstream: json["Handstream"].f32_string()?,
-		stamina: json["Stamina"].f32_string()?,
-		jackspeed: json["JackSpeed"].f32_string()?,
-		chordjack: json["Chordjack"].f32_string()?,
-		technical: json["Technical"].f32_string()?,
+		stream: json["Stream"].parse()?,
+		jumpstream: json["Jumpstream"].parse()?,
+		handstream: json["Handstream"].parse()?,
+		stamina: json["Stamina"].parse()?,
+		jackspeed: json["JackSpeed"].parse()?,
+		chordjack: json["Chordjack"].parse()?,
+		technical: json["Technical"].parse()?,
 	})
 }
 
@@ -123,7 +121,7 @@ impl Session {
 
 		Ok(SongData {
 			songkey: json["songkey"].string()?,
-			id: json["id"].u32_string()?,
+			id: json["id"].parse()?,
 			name: json["songname"].string()?,
 			subtitle: json["subtitle"].string_maybe()?,
 			author: json["author"].string()?,
@@ -132,15 +130,15 @@ impl Session {
 			background_url: json["banner"].string_maybe()?,
 			cdtitle: json["cdtitle"].string_maybe()?,
 			charts: json["charts"].array()?.iter().map(|json| Ok(SongChartData {
-				chartkey: json["chartkey"].chartkey_string()?,
-				msd: json["msd"].f32_string()?,
-				difficulty: json["difficulty"].difficulty_string()?,
+				chartkey: json["chartkey"].parse()?,
+				msd: json["msd"].parse()?,
+				difficulty: json["difficulty"].parse()?,
 				is_blacklisted: json["blacklisted"].bool_int_string()?,
 				leaderboard: json["leaderboard"].array()?.iter().map(|json| Ok(SongChartLeaderboardEntry {
 					username: json["username"].string()?,
 					wifescore: json["wifescore"].wifescore_proportion_string()?,
 					ssr_overall: json["Overall"].f32_()?,
-					rate: json["user_chart_rate_rate"].rate_string()?,
+					rate: json["user_chart_rate_rate"].parse()?,
 					datetime: json["datetime"].string()?,
 				})).collect::<Result<Vec<SongChartLeaderboardEntry>, Error>>()?,
 			})).collect::<Result<Vec<SongChartData>, Error>>()?,
@@ -227,38 +225,38 @@ impl Session {
 		let json = self.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])?;
 		json.array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
 			ssr: etterna::ChartSkillsets {
-				stream: json["Stream"].f32_string()?,
-				jumpstream: json["Jumpstream"].f32_string()?,
-				handstream: json["Handstream"].f32_string()?,
-				stamina: json["Stamina"].f32_string()?,
-				jackspeed: json["JackSpeed"].f32_string()?,
-				chordjack: json["Chordjack"].f32_string()?,
-				technical: json["Technical"].f32_string()?,
+				stream: json["Stream"].parse()?,
+				jumpstream: json["Jumpstream"].parse()?,
+				handstream: json["Handstream"].parse()?,
+				stamina: json["Stamina"].parse()?,
+				jackspeed: json["JackSpeed"].parse()?,
+				chordjack: json["Chordjack"].parse()?,
+				technical: json["Technical"].parse()?,
 			},
 			wifescore: json["wifescore"].wifescore_proportion_string()?,
-			max_combo: json["maxcombo"].u32_string()?,
+			max_combo: json["maxcombo"].parse()?,
 			is_valid: json["valid"].bool_int_string()?,
 			modifiers: json["modifiers"].string()?,
 			judgements: etterna::FullJudgements {
-				marvelouses: json["marv"].u32_string()?,
-				perfects: json["perfect"].u32_string()?,
-				greats: json["great"].u32_string()?,
-				goods: json["good"].u32_string()?,
-				bads: json["bad"].u32_string()?,
-				misses: json["miss"].u32_string()?,
-				hit_mines: json["hitmine"].u32_string()?,
-				held_holds: json["held"].u32_string()?,
-				let_go_holds: json["letgo"].u32_string()?,
-				missed_holds: json["missedhold"].u32_string()?,
+				marvelouses: json["marv"].parse()?,
+				perfects: json["perfect"].parse()?,
+				greats: json["great"].parse()?,
+				goods: json["good"].parse()?,
+				bads: json["bad"].parse()?,
+				misses: json["miss"].parse()?,
+				hit_mines: json["hitmine"].parse()?,
+				held_holds: json["held"].parse()?,
+				let_go_holds: json["letgo"].parse()?,
+				missed_holds: json["missedhold"].parse()?,
 			},
 			datetime: json["datetime"].string()?,
 			has_chord_cohesion: !json["nocc"].bool_int_string()?,
-			rate: json["user_chart_rate_rate"].rate_string()?,
+			rate: json["user_chart_rate_rate"].parse()?,
 			user: User {
 				username: json["username"].string()?,
 				avatar: json["avatar"].string()?,
 				country_code: json["countrycode"].string_maybe()?,
-				rating: json["player_rating"].f32_string()?,
+				rating: json["player_rating"].parse()?,
 			},
 			replay: crate::common::parse_replay(&json["replay"])?,
 		})).collect()
@@ -283,8 +281,8 @@ impl Session {
 
 		json.array()?.iter().map(|json| Ok(LatestScore {
 			song_name: json["songname"].string()?,
-			rate: json["user_chart_rate_rate"].rate_string()?,
-			ssr_overall: json["Overall"].f32_string()?,
+			rate: json["user_chart_rate_rate"].parse()?,
+			ssr_overall: json["Overall"].parse()?,
 			wifescore: json["wifescore"].wifescore_proportion_string()?,
 		})).collect()
 	}
@@ -316,13 +314,13 @@ impl Session {
 			avatar: json["avatar"].string()?, // "251c375b7c64494a304ea4d3a55afa92.jpg"
 			default_modifiers: json["default_modifiers"].string_maybe()?, // null
 			rating: etterna::UserSkillsets {
-				stream: json["Stream"].f32_string()?, // "27.5298"
-				jumpstream: json["Jumpstream"].f32_string()?, // "27.4409"
-				handstream: json["Handstream"].f32_string()?, // "28.1328"
-				stamina: json["Stamina"].f32_string()?, // "27.625"
-				jackspeed: json["JackSpeed"].f32_string()?, // "25.3525"
-				chordjack: json["Chordjack"].f32_string()?, // "27.479"
-				technical: json["Technical"].f32_string()?, // "27.7202"
+				stream: json["Stream"].parse()?, // "27.5298"
+				jumpstream: json["Jumpstream"].parse()?, // "27.4409"
+				handstream: json["Handstream"].parse()?, // "28.1328"
+				stamina: json["Stamina"].parse()?, // "27.625"
+				jackspeed: json["JackSpeed"].parse()?, // "25.3525"
+				chordjack: json["Chordjack"].parse()?, // "27.479"
+				technical: json["Technical"].parse()?, // "27.7202"
 			},
 			is_patreon: if json["Patreon"].is_null() { // null
 				false
@@ -352,14 +350,14 @@ impl Session {
 		let json = self.request("user_rank", &[("username", username)])?;
 
 		let user_rank = etterna::UserRank {
-			overall: json["Overall"].u32_string()?,
-			stream: json["Stream"].u32_string()?,
-			jumpstream: json["Jumpstream"].u32_string()?,
-			handstream: json["Handstream"].u32_string()?,
-			stamina: json["Stamina"].u32_string()?,
-			jackspeed: json["JackSpeed"].u32_string()?,
-			chordjack: json["Chordjack"].u32_string()?,
-			technical: json["Technical"].u32_string()?,
+			overall: json["Overall"].parse()?,
+			stream: json["Stream"].parse()?,
+			jumpstream: json["Jumpstream"].parse()?,
+			handstream: json["Handstream"].parse()?,
+			stamina: json["Stamina"].parse()?,
+			jackspeed: json["JackSpeed"].parse()?,
+			chordjack: json["Chordjack"].parse()?,
+			technical: json["Technical"].parse()?,
 		};
 
 		let user_rank_when_user_not_found = etterna::UserRank { overall: 1, stream: 1, jumpstream: 1,
@@ -406,12 +404,12 @@ impl Session {
 		
 		json.array()?.iter().map(|json| Ok(TopScore {
 			song_name: json["songname"].string()?, // "Everytime I hear Your Name"
-			rate: json["user_chart_rate_rate"].rate_string()?, // "1.40"
-			ssr_overall: json["Overall"].f32_string()?, // "30.78"
+			rate: json["user_chart_rate_rate"].parse()?, // "1.40"
+			ssr_overall: json["Overall"].parse()?, // "30.78"
 			wifescore: json["wifescore"].wifescore_proportion_string()?, // "0.96986"
-			chartkey: json["chartkey"].chartkey_string()?, // "X4b537c03eb1f72168f51a0ab92f8a58a62fbe4b4"
-			scorekey: json["scorekey"].scorekey_string()?, // "S11f0f01ab55220ebbf4e0e5ee28d36cce9a72721"
-			difficulty: json["difficulty"].difficulty_string()?, // "Hard"
+			chartkey: json["chartkey"].parse()?, // "X4b537c03eb1f72168f51a0ab92f8a58a62fbe4b4"
+			scorekey: json["scorekey"].parse()?, // "S11f0f01ab55220ebbf4e0e5ee28d36cce9a72721"
+			difficulty: json["difficulty"].parse()?, // "Hard"
 		})).collect()
 	}
 
@@ -494,44 +492,44 @@ impl Session {
 
 		Ok(ScoreData {
 			ssr: etterna::ChartSkillsets {
-				stream: json["Stream"].f32_string()?,
-				jumpstream: json["Jumpstream"].f32_string()?,
-				handstream: json["Handstream"].f32_string()?,
-				stamina: json["Stamina"].f32_string()?,
-				jackspeed: json["JackSpeed"].f32_string()?,
-				chordjack: json["Chordjack"].f32_string()?,
-				technical: json["Technical"].f32_string()?,
+				stream: json["Stream"].parse()?,
+				jumpstream: json["Jumpstream"].parse()?,
+				handstream: json["Handstream"].parse()?,
+				stamina: json["Stamina"].parse()?,
+				jackspeed: json["JackSpeed"].parse()?,
+				chordjack: json["Chordjack"].parse()?,
+				technical: json["Technical"].parse()?,
 			},
 			wifescore: json["wifescore"].wifescore_proportion_string()?,
-			max_combo: json["maxcombo"].u32_string()?,
+			max_combo: json["maxcombo"].parse()?,
 			is_valid: json["valid"].bool_int_string()?,
 			modifiers: json["modifiers"].string()?,
 			judgements: etterna::FullJudgements {
-				marvelouses: json["marv"].u32_string()?,
-				perfects: json["perfect"].u32_string()?,
-				greats: json["great"].u32_string()?,
-				goods: json["good"].u32_string()?,
-				bads: json["bad"].u32_string()?,
-				misses: json["miss"].u32_string()?,
-				hit_mines: json["hitmine"].u32_string()?,
-				held_holds: json["held"].u32_string()?,
-				let_go_holds: json["letgo"].u32_string()?,
-				missed_holds: json["missedhold"].u32_string()?,
+				marvelouses: json["marv"].parse()?,
+				perfects: json["perfect"].parse()?,
+				greats: json["great"].parse()?,
+				goods: json["good"].parse()?,
+				bads: json["bad"].parse()?,
+				misses: json["miss"].parse()?,
+				hit_mines: json["hitmine"].parse()?,
+				held_holds: json["held"].parse()?,
+				let_go_holds: json["letgo"].parse()?,
+				missed_holds: json["missedhold"].parse()?,
 			},
 			datetime: json["datetime"].string()?,
 			has_chord_cohesion: !json["nocc"].bool_int_string()?,
-			rate: json["user_chart_rate_rate"].rate_string()?,
+			rate: json["user_chart_rate_rate"].parse()?,
 			user: User {
 				username: json["username"].string()?,
 				avatar: json["avatar"].string()?,
 				country_code: json["countrycode"].string_maybe()?,
-				rating: json["player_rating"].f32_string()?,
+				rating: json["player_rating"].parse()?,
 			},
 			replay: crate::common::parse_replay(&json["replay"])?,
 			song: Song {
 				name: json["songname"].string()?,
 				artist: json["artist"].string()?,
-				id: json["id"].u32_string()?,
+				id: json["id"].parse()?,
 			}
 		})
 	}

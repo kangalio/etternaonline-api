@@ -4,33 +4,21 @@ use crate::Error;
 
 pub(crate) trait ApiUnwrap<T> {
 	fn json_unwrap(self) -> Result<T, Error>;
-	fn unwrappp(self, comment: &'static str) -> Result<T, Error>;
 }
-
 impl<T> ApiUnwrap<T> for Option<T> {
 	fn json_unwrap(self) -> Result<T, Error> {
 		self.ok_or(Error::InvalidJsonStructure(None))
 	}
-
-	fn unwrappp(self, comment: &'static str) -> Result<T, Error> {
-		self.ok_or_else(|| Error::InvalidJsonStructure(Some(comment.to_owned())))
-	}
 }
-
 impl<T, E: std::error::Error + 'static + Send + Sync> ApiUnwrap<T> for Result<T, E> where E: 'static {
 	fn json_unwrap(self) -> Result<T, Error> {
 		self.map_err(|e| Error::InvalidJsonStructure(Some(e.to_string())))
-	}
-
-	fn unwrappp(self, comment: &'static str) -> Result<T, Error> {
-		self.map_err(|_e| Error::InvalidJsonStructure(Some(comment.to_owned())))
 	}
 }
 
 pub(crate) trait ExtractStr {
 	fn extract<'a>(&'a self, before: &str, after: &str) -> Option<&'a str>;
 }
-
 impl ExtractStr for &str {
 	fn extract<'a>(&'a self, before: &str, after: &str) -> Option<&'a str> {
 		let start_index = self.find(before)? + before.len();
@@ -43,7 +31,7 @@ pub(crate) trait JsonValueExt: Sized {
 	fn get(&self) -> &serde_json::Value;
 
 	fn attempt_get<'val, 'content: 'val, T: 'content>(&'val self,
-		what_is_expected: &'static str,
+		what_is_expected: &str,
 		action: impl FnOnce(&'val serde_json::Value) -> Option<T>
 	) -> Result<T, Error> {
 		match action(self.get()) {
@@ -75,10 +63,6 @@ pub(crate) trait JsonValueExt: Sized {
 		}))
 	}
 
-	fn u32_string(&self) -> Result<u32, Error> {
-		self.attempt_get("u32 in a string", |j| j.as_str()?.parse().ok())
-	}
-
 	fn array(&self) -> Result<&Vec<serde_json::Value>, Error> {
 		self.attempt_get("array", |j| j.as_array())
 	}
@@ -103,15 +87,18 @@ pub(crate) trait JsonValueExt: Sized {
 		})
 	}
 
-	fn f32_string(&self) -> Result<f32, Error> {
-		self.attempt_get("f32 in a string", |j| j.as_str()?.parse::<f32>().ok())
+	fn parse<T: std::str::FromStr>(&self) -> Result<T, Error> {
+		let what_were_retrieving = format!("{} in a string", std::any::type_name::<T>());
+		let how_were_retrieving_it = |j: &serde_json::Value| j.as_str()?.parse::<T>().ok();
+
+		self.attempt_get(&what_were_retrieving, how_were_retrieving_it)
 	}
 
 	fn u64_(&self) -> Result<u64, Error> {
 		self.attempt_get("u64", |j| j.as_u64())
 	}
 
-	fn i322_(&self) -> Result<i32, Error> {
+	fn i32_(&self) -> Result<i32, Error> {
 		self.attempt_get("i32", |j| Some(j.as_i64()?.try_into().ok()?))
 	}
 
@@ -123,10 +110,6 @@ pub(crate) trait JsonValueExt: Sized {
 		self.attempt_get("f32", |j| Some(j.as_f64()? as f32))
 	}
 
-	fn difficulty_string(&self) -> Result<etterna::Difficulty, Error> {
-		self.attempt_get("difficulty", |j| etterna::Difficulty::from_long_string(j.as_str()?))
-	}
-
 	fn singular_array_item(&self) -> Result<&serde_json::Value, Error> {
 		self.attempt_get("array with a single item", |j| {
 			let arr = j.as_array()?;
@@ -135,10 +118,6 @@ pub(crate) trait JsonValueExt: Sized {
 				_ => None,
 			}
 		})
-	}
-
-	fn rate_string(&self) -> Result<etterna::Rate, Error> {
-		self.attempt_get("rate string", |j| etterna::Rate::from_string(j.as_str()?))
 	}
 
 	fn rate_float(&self) -> Result<etterna::Rate, Error> {
@@ -156,17 +135,8 @@ pub(crate) trait JsonValueExt: Sized {
 	fn wifescore_proportion_string(&self) -> Result<etterna::Wifescore, Error> {
 		self.attempt_get("wifescore proportion string", |j| etterna::Wifescore::from_proportion(j.as_str()?.parse().ok()?))
 	}
-
-	fn scorekey_string(&self) -> Result<etterna::Scorekey, Error> {
-		self.attempt_get("scorekey string", |j| etterna::Scorekey::new(j.as_str()?.to_owned()))
-	}
-
-	fn chartkey_string(&self) -> Result<etterna::Chartkey, Error> {
-		self.attempt_get("chartkey string", |j| etterna::Chartkey::new(j.as_str()?.to_owned()))
-	}
 }
 
 impl JsonValueExt for serde_json::Value {
-	// `self` intensifies
-	fn get(&self) -> &Self { self }
+	fn get(&self) -> &Self { self } // self intensifies
 }

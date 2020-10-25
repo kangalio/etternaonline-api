@@ -229,8 +229,8 @@ impl Session {
 				.extract("song/view/", "\"")?
 				.parse().ok()?
 			))?,
-			// scorekey: json["scorekey"].scorekey_string()?, // this disappeared
-			rate: json["user_chart_rate_rate"].rate_string()?,
+			// scorekey: json["scorekey"].parse()?, // this disappeared
+			rate: json["user_chart_rate_rate"].parse()?,
 			wifescore: json["wifescore"].attempt_get("wifescore", |j| Some(
 				etterna::Wifescore::from_percent(j
 					.as_str()?
@@ -274,13 +274,13 @@ impl Session {
 					))?,
 					// The following are zero if the score is invalid
 					ssr: etterna::ChartSkillsets {
-						stream: json["stream"].f32_string()?,
-						jumpstream: json["jumpstream"].f32_string()?,
-						handstream: json["handstream"].f32_string()?,
-						stamina: json["stamina"].f32_string()?,
-						jackspeed: json["jackspeed"].f32_string()?,
-						chordjack: json["chordjack"].f32_string()?,
-						technical: json["technical"].f32_string()?,
+						stream: json["stream"].parse()?,
+						jumpstream: json["jumpstream"].parse()?,
+						handstream: json["handstream"].parse()?,
+						stamina: json["stamina"].parse()?,
+						jackspeed: json["jackspeed"].parse()?,
+						chordjack: json["chordjack"].parse()?,
+						technical: json["technical"].parse()?,
 					},
 					ssr_overall_nerfed: json["Nerf"].f32_()?,
 				})
@@ -373,15 +373,15 @@ impl Session {
 				// })?,
 				date: json["date"].string()?,
 				judgements: TapJudgements {
-					marvelouses: json["marv"].u32_string()?,
-					perfects: json["perfect"].u32_string()?,
-					greats: json["great"].u32_string()?,
-					goods: json["good"].u32_string()?,
-					bads: json["bad"].u32_string()?,
-					misses: json["miss"].u32_string()?,
+					marvelouses: json["marv"].parse()?,
+					perfects: json["perfect"].parse()?,
+					greats: json["great"].parse()?,
+					goods: json["good"].parse()?,
+					bads: json["bad"].parse()?,
+					misses: json["miss"].parse()?,
 				},
-				max_combo: json["combo"].u32_string()?,
-				rate: json["rate"].rate_string()?,
+				max_combo: json["combo"].parse()?,
+				rate: json["rate"].parse()?,
 				ssr_overall: json["score"].attempt_get("SSR from score html", |json| Some(
 					json.as_str()?.extract("\">", "<")?.parse().ok()?
 				))?,
