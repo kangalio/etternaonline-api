@@ -192,34 +192,50 @@ mod tests {
 
 		assert_eq!(
 			replay.split_into_notes_and_hits(),
-			Some((
-				vec![0.0, 1.0, 2.0, 3.0, 4.0],
-				vec![0.15, 0.97, /* miss omitted */ 3.5, 4.15],
-			))
+			Some(NoteAndHitSeconds {
+				note_seconds: vec![0.0, 1.0, 2.0, 3.0, 4.0],
+				hit_seconds: vec![0.15, 0.97, /* miss omitted */ 3.5, 4.15],
+			})
 		);
 
 		assert_eq!(
 			replay.split_into_lanes(),
-			Some((
-				[vec![0.0, 4.0], vec![1.0], vec![2.0], vec![3.0]],
-				[vec![0.15, 4.15], vec![0.97], vec![], vec![3.5]],
-			))
+			Some([
+				NoteAndHitSeconds {
+					note_seconds: vec![0.0, 4.0],
+					hit_seconds: vec![0.15, 4.15],
+				},
+				NoteAndHitSeconds {
+					note_seconds: vec![1.0],
+					hit_seconds: vec![0.97],
+				},
+				NoteAndHitSeconds {
+					note_seconds: vec![2.0],
+					hit_seconds: vec![],
+				},
+				NoteAndHitSeconds {
+					note_seconds: vec![3.0],
+					hit_seconds: vec![3.5],
+				},
+			])
 		);
 
 		assert_eq!(
 			Replay { notes: vec![] }.split_into_notes_and_hits(),
-			Some((
-				vec![],
-				vec![],
-			))
+			Some(NoteAndHitSeconds {
+				note_seconds: vec![],
+				hit_seconds: vec![],
+			})
 		);
 		
 		assert_eq!(
 			Replay { notes: vec![] }.split_into_lanes(),
-			Some((
-				[vec![], vec![], vec![], vec![]],
-				[vec![], vec![], vec![], vec![]],
-			))
+			Some([
+				NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+				NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+				NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+				NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+			])
 		);
 	}
 }

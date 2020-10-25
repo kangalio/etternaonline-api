@@ -345,6 +345,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v2::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// // Retrieve the top 10 chordjack scores of user "kangalioo"
 	/// let scores = session.user_top_skillset_scores("kangalioo", Skillset7::Chordjack, 10)?;
@@ -795,6 +796,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v2::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// // Let's up kangalioo's first score goal's rate by 0.05
 	/// 
