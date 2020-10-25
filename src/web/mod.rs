@@ -56,7 +56,7 @@ impl EoRange for std::ops::RangeFull {
 
 pub struct Session {
 	// Rate limiting stuff
-	last_request: std::cell::Cell<std::time::Instant>,
+	last_request: std::sync::Mutex<std::time::Instant>, // could replace this was smth like a AtomicInstant
 	request_cooldown: std::time::Duration,
 
 	timeout: Option<std::time::Duration>,
@@ -69,7 +69,7 @@ impl Session {
 	) -> Self {
 		Self {
 			request_cooldown, timeout,
-			last_request: std::cell::Cell::new(std::time::Instant::now() - request_cooldown),
+			last_request: std::sync::Mutex::new(std::time::Instant::now() - request_cooldown),
 		}
 	}
 
@@ -78,7 +78,7 @@ impl Session {
 		path: &str,
 		request_callback: impl Fn(ureq::Request) -> ureq::Response,
 	) -> Result<ureq::Response, Error> {
-		crate::rate_limit(&self.last_request, self.request_cooldown);
+		crate::rate_limit(&mut *self.last_request.lock().unwrap(), self.request_cooldown);
 
 		let mut request = ureq::request(method, &format!("https://etternaonline.com/{}", path));
 		if let Some(timeout) = self.timeout {

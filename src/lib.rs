@@ -83,15 +83,15 @@ impl From<std::io::Error> for Error {
 }
 
 fn rate_limit(
-	last_request: &std::cell::Cell<std::time::Instant>,
+	last_request: &mut std::time::Instant,
 	request_cooldown: std::time::Duration
 ) {
 	let now = std::time::Instant::now();
-	let time_since_last_request = now.duration_since(last_request.get());
+	let time_since_last_request = now.duration_since(*last_request);
 	if time_since_last_request < request_cooldown {
 		std::thread::sleep(request_cooldown - time_since_last_request);
 	}
-	last_request.set(now);
+	*last_request = now;
 }
 
 /// This only works with 4k replays at the moment! All notes beyond the first four columns are

@@ -49,7 +49,7 @@ pub struct Session {
 	api_key: String,
 	cooldown: std::time::Duration,
 	timeout: Option<std::time::Duration>,
-	last_request: std::cell::Cell<std::time::Instant>,
+	last_request: std::sync::Mutex<std::time::Instant>,
 }
 
 impl Session {
@@ -60,12 +60,12 @@ impl Session {
 	) -> Self {
 		Self {
 			api_key, cooldown, timeout,
-			last_request: std::cell::Cell::new(std::time::Instant::now() - cooldown),
+			last_request: std::sync::Mutex::new(std::time::Instant::now() - cooldown),
 		}
 	}
 
 	fn request(&self, path: &str, parameters: &[(&str, &str)]) -> Result<serde_json::Value, Error> {
-		crate::rate_limit(&self.last_request, self.cooldown);
+		crate::rate_limit(&mut *self.last_request.lock().unwrap(), self.cooldown);
 
 		let mut request = ureq::get(&format!("https://api.etternaonline.com/v1/{}", path));
 		for (param, value) in parameters {

@@ -116,7 +116,7 @@ pub struct Session {
 	authorization: crate::common::AuthorizationManager<Option<String>>,
 	
 	// Rate limiting stuff
-	last_request: std::cell::Cell<std::time::Instant>,
+	last_request: std::sync::Mutex<std::time::Instant>,
 	cooldown: std::time::Duration,
 
 	timeout: Option<std::time::Duration>,
@@ -155,7 +155,7 @@ impl Session {
 		let session = Self {
 			username, password, client_data, cooldown, timeout,
 			authorization: crate::common::AuthorizationManager::new(None),
-			last_request: std::cell::Cell::new(std::time::Instant::now() - cooldown),
+			last_request: std::sync::Mutex::new(std::time::Instant::now() - cooldown),
 		};
 		session.login()?;
 
@@ -200,7 +200,7 @@ impl Session {
 		request_callback: impl Fn(ureq::Request) -> ureq::Response,
 		do_authorization: bool,
 	) -> Result<serde_json::Value, Error> {
-		crate::rate_limit(&self.last_request, self.cooldown);
+		crate::rate_limit(&mut *self.last_request.lock().unwrap(), self.cooldown);
 
 		let mut request = ureq::request(
 			method,
