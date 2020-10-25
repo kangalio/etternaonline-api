@@ -1,6 +1,8 @@
 #[doc(inline)]
 pub use crate::common::structs::*;
 
+use etterna::*;
+
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub struct PackEntry {

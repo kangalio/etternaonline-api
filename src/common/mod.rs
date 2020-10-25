@@ -1,6 +1,8 @@
 pub mod structs;
 use structs::*;
 
+use etterna::*;
+
 use crate::Error;
 use crate::extension_traits::*;
 

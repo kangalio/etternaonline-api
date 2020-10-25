@@ -1,5 +1,4 @@
-#[doc(no_inline)]
-pub use etterna::prelude::*;
+use etterna::prelude::*;
 
 /// Replay data, contains [`ReplayNote`]
 /// 

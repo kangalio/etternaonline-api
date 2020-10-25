@@ -1,6 +1,8 @@
 #[doc(inline)]
 pub use crate::common::structs::*;
 
+use etterna::*;
+
 /// Details about a user. See [`Session::user_details`](super::Session::user_details)
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]

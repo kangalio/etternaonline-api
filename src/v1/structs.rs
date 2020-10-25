@@ -1,6 +1,8 @@
 #[doc(inline)]
 pub use crate::common::structs::*;
 
+use etterna::*;
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub struct SongData {

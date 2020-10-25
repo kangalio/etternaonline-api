@@ -1,7 +1,10 @@
 mod structs;
 pub use structs::*;
 
-use crate::{Error, extension_traits::*};
+use etterna::*;
+
+use crate::Error;
+use crate::extension_traits::*;
 
 /// The kind of ranges that EO can process. Ranges can never be empty! They must have one or more
 /// elements
