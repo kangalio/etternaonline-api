@@ -12,12 +12,9 @@ keywords = ["etterna", "http", "bindings"]
 
 [dependencies]
 ureq = { version = "1.3", features = ["json"] }
-#ureq = { path = "../_downloaded/ureq", features = ["json"] }
 serde_json = "1.0"
 thiserror = "1.0"
-serde = { version = "1.0", features = ["derive"], optional = true }
+serde = { version = "1.0", features = ["derive"] }
 libm = "0.2.1"
-etterna = { package = "etterna_base", git = "https://github.com/kangalioo/etterna-base" }
-
-[features]
-serde_support = ["etterna/serde", "serde"]
+# etterna = { package = "etterna_base", path = "../etterna-base", features = ["serde"] }
+etterna = { package = "etterna_base", git = "https://github.com/kangalioo/etterna-base", features = ["serde"] }
