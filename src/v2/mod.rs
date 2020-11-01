@@ -18,8 +18,9 @@ fn difficulty_from_eo(string: &str) -> Result<etterna::Difficulty, Error> {
 	})
 }
 
-fn chart_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::ChartSkillsets, Error> {
-	Ok(etterna::ChartSkillsets {
+fn skillsets8_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets8, Error> {
+	Ok(etterna::Skillsets8 {
+		overall: json["Overall"].f32_()?,
 		stream: json["Stream"].f32_()?,
 		jumpstream: json["Jumpstream"].f32_()?,
 		handstream: json["Handstream"].f32_()?,
@@ -30,8 +31,8 @@ fn chart_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::ChartSki
 	})
 }
 
-fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::UserSkillsets, Error> {
-	Ok(etterna::UserSkillsets {
+fn skillsets7_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets7, Error> {
+	Ok(etterna::Skillsets7 {
 		stream: json["Stream"].f32_()?,
 		jumpstream: json["Jumpstream"].f32_()?,
 		handstream: json["Handstream"].f32_()?,
@@ -316,7 +317,7 @@ impl Session {
 				"" => None,
 				modifiers => Some(modifiers.to_owned()),
 			},
-			rating: user_skillsets_from_eo(&json["skillsets"])?,
+			rating: skillsets7_from_eo(&json["skillsets"])?,
 		})
 	}
 	
@@ -331,7 +332,7 @@ impl Session {
 			rate: json["attributes"]["rate"].rate_float()?,
 			difficulty: json["attributes"]["difficulty"].parse()?,
 			chartkey: json["attributes"]["chartKey"].parse()?,
-			base_msd: chart_skillsets_from_eo(&json["attributes"]["skillsets"])?,
+			base_msd: skillsets7_from_eo(&json["attributes"]["skillsets"])?,
 		})).collect()
 	}
 
@@ -466,7 +467,7 @@ impl Session {
 				chartkey: json["chartkey"].parse()?,
 				scorekey: json["scorekey"].parse()?,
 				difficulty: difficulty_from_eo(json["difficulty"].str_()?)?,
-				ssr: chart_skillsets_from_eo(&json)?,
+				ssr: skillsets7_from_eo(&json)?,
 			})).collect()
 		};
 
@@ -514,7 +515,7 @@ impl Session {
 			song_name: json["song"]["songName"].string()?,
 			artist: json["song"]["artist"].string()?,
 			song_id: json["song"]["id"].u32_()?,
-			ssr: chart_skillsets_from_eo(&json["skillsets"])?,
+			ssr: skillsets8_from_eo(&json["skillsets"])?,
 			judgements: parse_judgements(&json["judgements"])?,
 			replay: crate::common::parse_replay(&json["replay"])?,
 			user: parse_score_data_user_2(&json["user"])?,
@@ -549,7 +550,7 @@ impl Session {
 			has_chord_cohesion: !json["attributes"]["noCC"].bool_()?,
 			rate: json["attributes"]["rate"].rate_float()?,
 			datetime: json["attributes"]["datetime"].string()?,
-			ssr: chart_skillsets_from_eo(&json["attributes"]["skillsets"])?,
+			ssr: skillsets8_from_eo(&json["attributes"]["skillsets"])?, // not sure if it really has all 8
 			judgements: parse_judgements(&json["attributes"]["judgements"])?,
 			has_replay: json["attributes"]["hasReplay"].bool_()?, // API docs are wrong again
 			user: parse_score_data_user_1(&json["attributes"]["user"])?,
@@ -580,7 +581,7 @@ impl Session {
 
 		json.array()?.iter().map(|json| Ok(LeaderboardEntry {
 			user: parse_score_data_user_2(&json["attributes"]["user"])?,
-			rating: user_skillsets_from_eo(&json["attributes"]["skillsets"])?,
+			rating: skillsets8_from_eo(&json["attributes"]["skillsets"])?, // not sure if it really has all 8
 		})).collect()
 	}
 

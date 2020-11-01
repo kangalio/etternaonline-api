@@ -5,8 +5,9 @@ use crate::Error;
 use crate::extension_traits::*;
 
 
-fn user_skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::UserSkillsets, Error> {
-	Ok(etterna::UserSkillsets {
+fn skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets8, Error> {
+	Ok(etterna::Skillsets8 {
+		overall: json["Overall"].parse()?,
 		stream: json["Stream"].parse()?,
 		jumpstream: json["Jumpstream"].parse()?,
 		handstream: json["Handstream"].parse()?,
@@ -230,15 +231,7 @@ impl Session {
 	pub fn chart_leaderboard(&self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardEntry>, Error> {
 		let json = self.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])?;
 		json.array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
-			ssr: etterna::ChartSkillsets {
-				stream: json["Stream"].parse()?,
-				jumpstream: json["Jumpstream"].parse()?,
-				handstream: json["Handstream"].parse()?,
-				stamina: json["Stamina"].parse()?,
-				jackspeed: json["JackSpeed"].parse()?,
-				chordjack: json["Chordjack"].parse()?,
-				technical: json["Technical"].parse()?,
-			},
+			ssr: skillsets_from_eo(&json)?,
 			wifescore: json["wifescore"].wifescore_proportion_string()?,
 			max_combo: json["maxcombo"].parse()?,
 			is_valid: json["valid"].bool_int_string()?,
@@ -321,15 +314,7 @@ impl Session {
 			is_moderator: json["moderator"].bool_int_string()?, // "0"
 			avatar: json["avatar"].string()?, // "251c375b7c64494a304ea4d3a55afa92.jpg"
 			default_modifiers: json["default_modifiers"].string_maybe()?, // null
-			rating: etterna::UserSkillsets {
-				stream: json["Stream"].parse()?, // "27.5298"
-				jumpstream: json["Jumpstream"].parse()?, // "27.4409"
-				handstream: json["Handstream"].parse()?, // "28.1328"
-				stamina: json["Stamina"].parse()?, // "27.625"
-				jackspeed: json["JackSpeed"].parse()?, // "25.3525"
-				chordjack: json["Chordjack"].parse()?, // "27.479"
-				technical: json["Technical"].parse()?, // "27.7202"
-			},
+			rating: skillsets_from_eo(&json)?,
 			is_patreon: if json["Patreon"].is_null() { // null
 				false
 			} else {
@@ -431,7 +416,7 @@ impl Session {
 		json.array()?.iter().map(|json| Ok(LeaderboardEntry {
 			username: json["username"].string()?,
 			avatar: json["avatar"].string()?,
-			rating: user_skillsets_from_eo(json)?,
+			rating: skillsets_from_eo(json)?,
 			country_code: json["countrycode"].string()?,
 		})).collect()
 	}
@@ -504,15 +489,7 @@ impl Session {
 		let json = json.singular_array_item()?;
 
 		Ok(ScoreData {
-			ssr: etterna::ChartSkillsets {
-				stream: json["Stream"].parse()?,
-				jumpstream: json["Jumpstream"].parse()?,
-				handstream: json["Handstream"].parse()?,
-				stamina: json["Stamina"].parse()?,
-				jackspeed: json["JackSpeed"].parse()?,
-				chordjack: json["Chordjack"].parse()?,
-				technical: json["Technical"].parse()?,
-			},
+			ssr: skillsets_from_eo(&json)?,
 			wifescore: json["wifescore"].wifescore_proportion_string()?,
 			max_combo: json["maxcombo"].parse()?,
 			is_valid: json["valid"].bool_int_string()?,

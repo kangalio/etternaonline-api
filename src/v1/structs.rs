@@ -54,7 +54,7 @@ pub struct PackEntry {
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartLeaderboardEntry {
-	pub ssr: ChartSkillsets,
+	pub ssr: Skillsets8,
 	pub wifescore: Wifescore,
 	pub max_combo: u32,
 	pub is_valid: bool,
@@ -94,7 +94,7 @@ pub struct UserData {
 	pub is_moderator: bool,
 	pub avatar: String,
 	pub default_modifiers: Option<String>,
-	pub rating: UserSkillsets,
+	pub rating: Skillsets8,
 	pub is_patreon: bool,
 }
 
@@ -115,14 +115,14 @@ pub struct TopScore {
 pub struct LeaderboardEntry {
 	pub username: String,
 	pub avatar: String,
-	pub rating: UserSkillsets,
+	pub rating: Skillsets8,
 	pub country_code: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreData {
-	pub ssr: ChartSkillsets,
+	pub ssr: Skillsets8,
 	pub wifescore: Wifescore,
 	pub max_combo: u32,
 	pub is_valid: bool,

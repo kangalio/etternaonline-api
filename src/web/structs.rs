@@ -23,7 +23,7 @@ pub struct LeaderboardEntry {
 	pub username: String,
 	pub country: Option<Country>,
 	pub avatar: String,
-	pub rating: UserSkillsets,
+	pub rating: Skillsets8,
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -62,19 +62,20 @@ pub struct UserScore {
 // The part of a [`UserScore`] that is only present if the score is valid
 pub struct ValidUserScoreInfo {
 	pub user_id: u32,
-	pub ssr: ChartSkillsets,
+	pub ssr: Skillsets8,
 	pub ssr_overall_nerfed: f32,
 	pub scorekey: Scorekey,
 }
 
 impl ValidUserScoreInfo {
 	pub fn nerf_factor(&self) -> f32 {
-		self.ssr_overall_nerfed / self.ssr.overall()
+		self.ssr_overall_nerfed / self.ssr.overall
 	}
 
-	pub fn nerfed_ssr(&self) -> ChartSkillsets {
+	pub fn nerfed_ssr(&self) -> Skillsets8 {
 		let nerf_factor = self.nerf_factor();
-		ChartSkillsets {
+		Skillsets8 {
+			overall: self.ssr_overall_nerfed,
 			stream: self.ssr.stream * nerf_factor,
 			jumpstream: self.ssr.jumpstream * nerf_factor,
 			handstream: self.ssr.handstream * nerf_factor,

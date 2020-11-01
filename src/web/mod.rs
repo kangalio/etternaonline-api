@@ -162,7 +162,8 @@ impl Session {
 				avatar: user_string
 					.extract("/avatars/", "\"").json_unwrap()?
 					.to_owned(),
-				rating: etterna::UserSkillsets {
+				rating: etterna::Skillsets8 {
+					overall: json["Overall"].f32_()?,
 					stamina: json["Stamina"].f32_()?,
 					stream: json["Stream"].f32_()?,
 					jumpstream: json["Jumpstream"].f32_()?,
@@ -273,7 +274,8 @@ impl Session {
 						.parse().ok()?
 					))?,
 					// The following are zero if the score is invalid
-					ssr: etterna::ChartSkillsets {
+					ssr: etterna::Skillsets8 {
+						overall: json["overall"].parse()?,
 						stream: json["stream"].parse()?,
 						jumpstream: json["jumpstream"].parse()?,
 						handstream: json["handstream"].parse()?,
