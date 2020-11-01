@@ -201,6 +201,7 @@ impl Session {
 		request_callback: impl Fn(ureq::Request) -> ureq::Response,
 		do_authorization: bool,
 	) -> Result<serde_json::Value, Error> {
+		// UNWRAP: propagate panics
 		crate::rate_limit(&mut *self.last_request.lock().unwrap(), self.cooldown);
 
 		let mut request = ureq::request(

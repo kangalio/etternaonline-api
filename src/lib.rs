@@ -99,6 +99,8 @@ fn rate_limit(
 /// 
 /// If the replay doesn't have sufficient information, None is returned (see
 /// [`Replay::split_into_lanes`])
+/// 
+/// Panics if the replay contains NaN
 pub fn rescore<S, W>(
 	replay: &Replay,
 	num_hit_mines: u32,
@@ -114,10 +116,10 @@ where
 	// Yes it's correct that I'm sorting the two lists separately, and yes it's correct
 	// that with that, their ordering won't be the same anymore. This is all okay, because that's
 	// how the rescorers accept their data and how they work.
-	let sort = |slice: &mut [f32]| slice.sort_by(|a, b| a.partial_cmp(b).unwrap());
 	for lane in lanes.iter_mut() {
-		sort(&mut lane.note_seconds);
-		sort(&mut lane.hit_seconds);
+		// UNWRAP: documented panic behavior
+		lane.note_seconds.sort_by(|a, b| a.partial_cmp(b).unwrap());
+		lane.hit_seconds.sort_by(|a, b| a.partial_cmp(b).unwrap());
 	}
 
 	Some(etterna::rescore::<S, W>(

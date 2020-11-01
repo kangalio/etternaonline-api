@@ -46,8 +46,6 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 	};
 
 	let json: serde_json::Value = serde_json::from_str(replay_str)?;
-	
-	// println!("{}", serde_json::to_string_pretty(&json).unwrap());
 
 	let notes = json.array()?.iter().map(|note_json| Ok({
 		let note_json = note_json.array()?;
@@ -118,6 +116,7 @@ impl<T> AuthorizationManager<T> {
     /// wait until the other thread is finished and then return without having
     /// called the closure.
 	pub fn refresh<E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<(), E> {
+		// UNWRAP: the unwraps in here are all for propagating panics
 		println!("STARTING REFRESH PROCESS");
 
 		let thread_id = std::thread::current().id();
@@ -163,9 +162,10 @@ impl<T> AuthorizationManager<T> {
     /// Please drop the returned smart pointer as early as possible. The longer
     /// you hold on to it, the longer you block other threads from logging in.
     pub fn get_authorization(&self) -> impl '_ + std::ops::Deref<Target = T> {
-        // This will block if a mutable lock is active, i.e. another thread
+		// This will block if a mutable lock is active, i.e. another thread
         // is logging in right now. So we will wait until the other thread
-        // finished logging in to get its new fresh authorization value
+		// finished logging in to get its new fresh authorization value
+		// UNSAFE: propagate panics
         self.lock.read().unwrap()
     }
 }

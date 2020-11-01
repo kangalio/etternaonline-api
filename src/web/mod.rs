@@ -78,6 +78,7 @@ impl Session {
 		path: &str,
 		request_callback: impl Fn(ureq::Request) -> ureq::Response,
 	) -> Result<ureq::Response, Error> {
+		// UNWRAP: propagate panics
 		crate::rate_limit(&mut *self.last_request.lock().unwrap(), self.request_cooldown);
 
 		let mut request = ureq::request(method, &format!("https://etternaonline.com/{}", path));

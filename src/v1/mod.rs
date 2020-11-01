@@ -66,6 +66,7 @@ impl Session {
 	}
 
 	fn request(&self, path: &str, parameters: &[(&str, &str)]) -> Result<serde_json::Value, Error> {
+		// UNWRAP: propagate panics
 		crate::rate_limit(&mut *self.last_request.lock().unwrap(), self.cooldown);
 
 		let mut request = ureq::get(&format!("https://api.etternaonline.com/v1/{}", path));
