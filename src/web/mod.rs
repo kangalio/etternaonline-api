@@ -164,7 +164,7 @@ impl Session {
 					.extract("/avatars/", "\"").json_unwrap()?
 					.to_owned(),
 				rating: etterna::Skillsets8 {
-					overall: json["Overall"].f32_()?,
+					overall: json["player_rating"].f32_()?,
 					stamina: json["Stamina"].f32_()?,
 					stream: json["Stream"].f32_()?,
 					jumpstream: json["Jumpstream"].f32_()?,
@@ -262,7 +262,7 @@ impl Session {
 				None
 			} else {
 				Some(ValidUserScoreInfo {
-					scorekey: json["Overall"].attempt_get("user id", |j| Some(j
+					scorekey: json["Overall"].attempt_get("scorekey", |j| Some(j
 						.as_str()?
 						.extract("score/view/", "\"")?
 						[..41]
@@ -276,7 +276,11 @@ impl Session {
 					))?,
 					// The following are zero if the score is invalid
 					ssr: etterna::Skillsets8 {
-						overall: json["overall"].parse()?,
+						overall: json["Overall"].attempt_get("overall", |j| Some(j
+							.as_str()?
+							.extract("\">", "<")?
+							.parse().ok()?
+						))?,
 						stream: json["stream"].parse()?,
 						jumpstream: json["jumpstream"].parse()?,
 						handstream: json["handstream"].parse()?,
