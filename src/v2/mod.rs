@@ -14,7 +14,7 @@ fn difficulty_from_eo(string: &str) -> Result<etterna::Difficulty, Error> {
 		"Hard" => Difficulty::Hard,
 		"Challenge" => Difficulty::Challenge,
 		"Edit" => Difficulty::Edit,
-		other => return Err(Error::UnexpectedResponse(format!("Unexpected difficulty name '{}'", other))),
+		other => return Err(Error::InvalidDataStructure(format!("Unexpected difficulty name '{}'", other))),
 	})
 }
 
@@ -197,7 +197,11 @@ impl Session {
 		};
 
 		if status >= 500 {
-			return Err(Error::ServerIsDown);
+			return Err(Error::ServerIsDown { status_code: status });
+		}
+
+		if response.is_empty() {
+			return Err(Error::EmptyServerResponse);
 		}
 
 		// only parse json if the response code is not 5xx because on 5xx response codes, the server

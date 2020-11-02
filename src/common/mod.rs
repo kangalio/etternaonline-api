@@ -15,7 +15,7 @@ pub(crate) fn note_type_from_eo(note_type: &serde_json::Value) -> Result<etterna
 		5 => Ok(NoteType::Lift),
 		6 => Ok(NoteType::Keysound),
 		7 => Ok(NoteType::Fake),
-		other => Err(Error::UnexpectedResponse(format!("Unexpected note type integer {}", other))),
+		other => Err(Error::InvalidDataStructure(format!("Unexpected note type integer {}", other))),
 	}
 }
 

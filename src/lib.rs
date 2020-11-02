@@ -56,20 +56,20 @@ pub enum Error {
 	NoUsersFound,
 
 	// Meta errors
-	#[error("Server response was malformed or nonsensical ({0})")]
-	UnexpectedResponse(String),
+	#[error("General network error ({0})")]
+	NetworkError(String),
+	#[error("Internal web server error (HTTP {status_code})")]
+	ServerIsDown { status_code: u16 },
 	#[error("Error while parsing the json sent by the server ({0})")]
 	InvalidJson(#[from] serde_json::Error),
-	#[error("Web server is down")]
-	ServerIsDown,
-	#[error("Network error ({0})")]
-	NetworkError(String),
-	#[error("Server returned an unknown error ({0})")]
+	#[error("Sever responded to query with an unrecognized error message ({0})")]
 	UnknownApiError(String),
-	#[error("Server sent a JSON payload that doesn't match expectations (debug: {0:?})")]
-	InvalidJsonStructure(Option<String>),
+	#[error("Server sent a payload that doesn't match expectations (debug: {0:?})")]
+	InvalidDataStructure(String),
 	#[error("Server timed out")]
 	Timeout,
+	#[error("Server response was empty")]
+	EmptyServerResponse
 }
 
 impl From<std::io::Error> for Error {

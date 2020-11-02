@@ -104,28 +104,44 @@ impl Session {
 		)?.into_json()?;
 
 		json["data"].array()?.iter().map(|json| Ok(PackEntry {
-			average_msd: json["average"].str_()?
-				.extract("\" />", "</span>").json_unwrap()?
-				.parse().json_unwrap()?,
-			datetime: json["date"].str_()?
-				.to_owned(),
-			size: json["size"].str_()?
-				.parse().json_unwrap()?,
-			name: json["packname"].str_()?
-				.extract(">", "</a>").json_unwrap()?
-				.to_owned(),
-			id: json["packname"].str_()?
-				.extract("pack/", "\"").json_unwrap()?
-				.parse().json_unwrap()?,
-			num_votes: json["r_avg"].str_()?
-				.extract("title='", " votes").json_unwrap()?
-				.parse().json_unwrap()?,
-			average_vote: json["r_avg"].str_()?
-				.extract("votes'>", "</div>").json_unwrap()?
-				.parse().json_unwrap()?,
-			download_link: json["download"].str_()?
-				.extract("href=\"", "\">").json_unwrap()?
-				.to_owned(),
+			average_msd: json["average"].attempt_get("average_msd", |j| Some(j
+				.as_str()?
+				.extract("\" />", "</span>")?
+				.parse().ok()?
+			))?,
+			datetime: json["date"].attempt_get("datetime", |j| Some(j
+				.as_str()?
+				.to_owned()
+			))?,
+			size: json["size"].attempt_get("size", |j| Some(j
+				.as_str()?
+				.parse().ok()?
+			))?,
+			name: json["packname"].attempt_get("name", |j| Some(j
+				.as_str()?
+				.extract(">", "</a>")?
+				.to_owned()
+			))?,
+			id: json["packname"].attempt_get("id", |j| Some(j
+				.as_str()?
+				.extract("pack/", "\"")?
+				.parse().ok()?
+			))?,
+			num_votes: json["r_avg"].attempt_get("num_votes", |j| Some(j
+				.as_str()?
+				.extract("title='", " votes")?
+				.parse().ok()?
+			))?,
+			average_vote: json["r_avg"].attempt_get("average_vote", |j| Some(j
+				.as_str()?
+				.extract("votes'>", "</div>")?
+				.parse().ok()?
+			))?,
+			download_link: json["download"].attempt_get("download_link", |j| Some(j
+				.as_str()?
+				.extract("href=\"", "\">")?
+				.to_owned()
+			))?,
 		})).collect()
 	}
 
@@ -143,26 +159,32 @@ impl Session {
 		)?.into_json()?;
 
 		json["data"].array()?.iter().map(|json| {
-			let user_string = json["username"].str_()?;
-
 			Ok(LeaderboardEntry {
-				rank: json["rank"].attempt_get("rank int", |j| {
-					j.as_str()?.trim_start_matches('#').parse().ok()
-				})?,
-				username: user_string
-					.extract("/user/", "\"").json_unwrap()?
+				rank: json["rank"].attempt_get("rank int", |j| Some(j
+					.as_str()?
+					.trim_start_matches('#')
+					.parse().ok()?
+				))?,
+				username: json["username"].attempt_get("leaderboard username", |j| Some(j
+					.as_str()?
+					.extract("/user/", "\"")?
 					.to_owned(),
+				))?,
 				country: (|| Some(Country {
-					code: user_string
+					code: json["username"]
+						.as_str()?
 						.extract("/img/flags/", ".svg")?
 						.to_owned(),
-					name: user_string
+					name: json["username"]
+						.as_str()?
 						.extract("title=\"", "\"")?
 						.to_owned(),
 				}))(),
-				avatar: user_string
-					.extract("/avatars/", "\"").json_unwrap()?
-					.to_owned(),
+				avatar: json["username"].attempt_get("leaderboard username", |j| Some(j
+					.as_str()?
+					.extract("/avatars/", "\"")?
+					.to_owned()
+				))?,
 				rating: etterna::Skillsets8 {
 					overall: json["player_rating"].f32_()?,
 					stamina: json["Stamina"].f32_()?,
@@ -315,7 +337,7 @@ impl Session {
 
 		Ok(UserDetails {
 			user_id: (|| response.as_str().extract("'userid': '", "'")?.parse().ok())()	
-				.ok_or_else(|| Error::UnexpectedResponse("No userid found in user page".to_owned()))?,
+				.ok_or_else(|| Error::InvalidDataStructure("No userid found in user page".to_owned()))?,
 		})
 	}
 

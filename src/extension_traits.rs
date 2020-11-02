@@ -2,20 +2,6 @@ use std::convert::TryInto;
 
 use crate::Error;
 
-pub(crate) trait ApiUnwrap<T> {
-	fn json_unwrap(self) -> Result<T, Error>;
-}
-impl<T> ApiUnwrap<T> for Option<T> {
-	fn json_unwrap(self) -> Result<T, Error> {
-		self.ok_or(Error::InvalidJsonStructure(None))
-	}
-}
-impl<T, E: std::error::Error + 'static + Send + Sync> ApiUnwrap<T> for Result<T, E> where E: 'static {
-	fn json_unwrap(self) -> Result<T, Error> {
-		self.map_err(|e| Error::InvalidJsonStructure(Some(e.to_string())))
-	}
-}
-
 pub(crate) trait ExtractStr {
 	fn extract<'a>(&'a self, before: &str, after: &str) -> Option<&'a str>;
 }
@@ -36,14 +22,14 @@ pub(crate) trait JsonValueExt: Sized {
 	) -> Result<T, Error> {
 		match action(self.get()) {
 			Some(result) => Ok(result),
-			None => Err(Error::InvalidJsonStructure(Some({
+			None => Err(Error::InvalidDataStructure({
 				let mut msg = format!("Expected {}, found {}", what_is_expected, self.get());
 				if msg.len() > 500 {
 					msg.truncate(500);
 					msg += "...";
 				}
 				msg
-			})))
+			}))
 		}
 	}
 
