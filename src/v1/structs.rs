@@ -10,7 +10,7 @@ pub struct SongData {
 	pub id: u32,
 	pub name: String,
 	pub subtitle: Option<String>,
-	pub author: String,
+	pub author: Option<String>,
 	pub artist: String,
 	pub banner_url: Option<String>,
 	pub background_url: Option<String>,

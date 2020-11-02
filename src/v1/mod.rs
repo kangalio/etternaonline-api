@@ -79,7 +79,6 @@ impl Session {
 		}
 
 		let response = request.call().into_string()?;
-		// println!("{}", response); // REMEMBER
 		let json: serde_json::Value = serde_json::from_str(&response)?;
 
 		if let Some(error) = json["error"].as_str() {
@@ -106,7 +105,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let song = session.song_data(2858)?;
 	/// 
@@ -121,14 +120,12 @@ impl Session {
 			return Err(Error::SongNotFound);
 		}
 
-		println!("{:#?}", json);
-
 		Ok(SongData {
 			songkey: json["songkey"].string()?,
 			id: json["id"].parse()?,
 			name: json["songname"].string()?,
 			subtitle: json["subtitle"].string_maybe()?,
-			author: json["author"].string()?,
+			author: json["author"].string_maybe()?,
 			artist: json["artist"].string()?,
 			banner_url: json["banner"].string_maybe()?,
 			background_url: json["banner"].string_maybe()?,
@@ -159,7 +156,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let client_version = session.client_version()?;
 	/// assert_eq!(client_version, "0.70.1"); // As of 2020-07-25
@@ -175,7 +172,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let register_link = session.register_link()?;
 	/// assert_eq!(register_link, "https://etternaonline.com/user/register/"); // As of 2020-07-25
@@ -191,7 +188,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let pack_list = session.pack_list()?;
 	/// 
@@ -223,7 +220,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let leaderboard = session.chart_leaderboard("Xbbff339a2c301d7bf03dc99bc1b013c3b80e75d3")?;
 	/// assert_eq!(leaderboard[0].user.username, "kangalioo"); // As of 2020-07-25
@@ -271,7 +268,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let latest_scores = session.user_latest_10_scores("kangalioo")?;
 	/// println!("Last played song was {}", latest_scores[0].song_name);
@@ -297,7 +294,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let me = session.user_data("kangalioo")?;
 	/// 
@@ -333,7 +330,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let ranks = session.user_ranks("kangalioo")?;
 	/// 
@@ -376,7 +373,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let top_jumpstream_scores = session.user_top_scores(
 	/// 	"kangalioo",
@@ -431,7 +428,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let leaderboard = session.country_leaderboard("DE")?;
 	/// 
@@ -454,7 +451,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let leaderboard = session.global_leaderboard()?;
 	/// 
@@ -478,7 +475,7 @@ impl Session {
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
 	/// # use etternaonline_api::v1::*;
-/// # use etterna::*;
+	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let score_info = session.score_data("S11f0f01ab55220ebbf4e0e5ee28d36cce9a72722")?;
 	/// 

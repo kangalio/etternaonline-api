@@ -18,31 +18,6 @@ fn difficulty_from_eo(string: &str) -> Result<etterna::Difficulty, Error> {
 	})
 }
 
-fn skillsets8_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets8, Error> {
-	Ok(etterna::Skillsets8 {
-		overall: json["Overall"].f32_()?,
-		stream: json["Stream"].f32_()?,
-		jumpstream: json["Jumpstream"].f32_()?,
-		handstream: json["Handstream"].f32_()?,
-		stamina: json["Stamina"].f32_()?,
-		jackspeed: json["JackSpeed"].f32_()?,
-		chordjack: json["Chordjack"].f32_()?,
-		technical: json["Technical"].f32_()?,
-	})
-}
-
-fn skillsets7_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets7, Error> {
-	Ok(etterna::Skillsets7 {
-		stream: json["Stream"].f32_()?,
-		jumpstream: json["Jumpstream"].f32_()?,
-		handstream: json["Handstream"].f32_()?,
-		stamina: json["Stamina"].f32_()?,
-		jackspeed: json["JackSpeed"].f32_()?,
-		chordjack: json["Chordjack"].f32_()?,
-		technical: json["Technical"].f32_()?,
-	})
-}
-
 fn parse_judgements(json: &serde_json::Value) -> Result<etterna::FullJudgements, Error> {
 	Ok(etterna::FullJudgements {
 		marvelouses: json["marvelous"].u32_()?,
@@ -55,24 +30,6 @@ fn parse_judgements(json: &serde_json::Value) -> Result<etterna::FullJudgements,
 		held_holds: json["heldHold"].u32_()?,
 		let_go_holds: json["letGoHold"].u32_()?,
 		missed_holds: json["missedHold"].u32_()?,
-	})
-}
-
-fn parse_score_data_user_1(json: &serde_json::Value) -> Result<ScoreUser, Error> {
-	Ok(ScoreUser {
-		username: json["userName"].string()?,
-		avatar: json["avatar"].string()?,
-		country_code: json["countryCode"].string()?,
-		overall_rating: json["playerRating"].f32_()?,
-	})
-}
-
-fn parse_score_data_user_2(json: &serde_json::Value) -> Result<ScoreUser, Error> {
-	Ok(ScoreUser {
-		username: json["username"].string()?,
-		avatar: json["avatar"].string()?,
-		country_code: json["countryCode"].string()?,
-		overall_rating: json["Overall"].f32_()?,
 	})
 }
 
@@ -246,7 +203,7 @@ impl Session {
 		// only parse json if the response code is not 5xx because on 5xx response codes, the server
 		// sometimes sends empty responses
 		let mut json: serde_json::Value = serde_json::from_str(&response)?;
-		
+
 		// Error handling
 		if status >= 400 {
 			return match json["errors"][0]["title"].str_()? {
@@ -318,7 +275,16 @@ impl Session {
 				"" => None,
 				modifiers => Some(modifiers.to_owned()),
 			},
-			rating: skillsets7_from_eo(&json["skillsets"])?,
+			rating: etterna::Skillsets8 {
+				overall: json["playerRating"].f32_()?,
+				stream: json["skillsets"]["Stream"].f32_()?,
+				jumpstream: json["skillsets"]["Jumpstream"].f32_()?,
+				handstream: json["skillsets"]["Handstream"].f32_()?,
+				stamina: json["skillsets"]["Stamina"].f32_()?,
+				jackspeed: json["skillsets"]["JackSpeed"].f32_()?,
+				chordjack: json["skillsets"]["Chordjack"].f32_()?,
+				technical: json["skillsets"]["Technical"].f32_()?,
+			},
 		})
 	}
 	
@@ -333,7 +299,16 @@ impl Session {
 			rate: json["attributes"]["rate"].rate_float()?,
 			difficulty: json["attributes"]["difficulty"].parse()?,
 			chartkey: json["attributes"]["chartKey"].parse()?,
-			base_msd: skillsets7_from_eo(&json["attributes"]["skillsets"])?,
+			base_msd: etterna::Skillsets8 {
+				overall: json["attributes"]["Overall"].f32_()?,
+				stream: json["attributes"]["skillsets"]["Stream"].f32_()?,
+				jumpstream: json["attributes"]["skillsets"]["Jumpstream"].f32_()?,
+				handstream: json["attributes"]["skillsets"]["Handstream"].f32_()?,
+				stamina: json["attributes"]["skillsets"]["Stamina"].f32_()?,
+				jackspeed: json["attributes"]["skillsets"]["JackSpeed"].f32_()?,
+				chordjack: json["attributes"]["skillsets"]["Chordjack"].f32_()?,
+				technical: json["attributes"]["skillsets"]["Technical"].f32_()?,
+			},
 		})).collect()
 	}
 
@@ -468,7 +443,16 @@ impl Session {
 				chartkey: json["chartkey"].parse()?,
 				scorekey: json["scorekey"].parse()?,
 				difficulty: difficulty_from_eo(json["difficulty"].str_()?)?,
-				ssr: skillsets7_from_eo(&json)?,
+				ssr: etterna::Skillsets8 {
+					overall: json["Overall"].f32_()?,
+					stream: json["Stream"].f32_()?,
+					jumpstream: json["Jumpstream"].f32_()?,
+					handstream: json["Handstream"].f32_()?,
+					stamina: json["Stamina"].f32_()?,
+					jackspeed: json["JackSpeed"].f32_()?,
+					chordjack: json["Chordjack"].f32_()?,
+					technical: json["Technical"].f32_()?,
+				},
 			})).collect()
 		};
 
@@ -516,10 +500,24 @@ impl Session {
 			song_name: json["song"]["songName"].string()?,
 			artist: json["song"]["artist"].string()?,
 			song_id: json["song"]["id"].u32_()?,
-			ssr: skillsets8_from_eo(&json["skillsets"])?,
+			ssr: etterna::Skillsets8 {
+				overall: json["skillsets"]["Overall"].f32_()?,
+				stream: json["skillsets"]["Stream"].f32_()?,
+				jumpstream: json["skillsets"]["Jumpstream"].f32_()?,
+				handstream: json["skillsets"]["Handstream"].f32_()?,
+				stamina: json["skillsets"]["Stamina"].f32_()?,
+				jackspeed: json["skillsets"]["JackSpeed"].f32_()?,
+				chordjack: json["skillsets"]["Chordjack"].f32_()?,
+				technical: json["skillsets"]["Technical"].f32_()?,
+			},
 			judgements: parse_judgements(&json["judgements"])?,
 			replay: crate::common::parse_replay(&json["replay"])?,
-			user: parse_score_data_user_2(&json["user"])?,
+			user: ScoreUser {
+				username: json["user"]["username"].string()?,
+				avatar: json["user"]["avatar"].string()?,
+				country_code: json["user"]["countryCode"].string()?,
+				overall_rating: json["user"]["Overall"].f32_()?,
+			},
 		})
 	}
 
@@ -551,10 +549,24 @@ impl Session {
 			has_chord_cohesion: !json["attributes"]["noCC"].bool_()?,
 			rate: json["attributes"]["rate"].rate_float()?,
 			datetime: json["attributes"]["datetime"].string()?,
-			ssr: skillsets8_from_eo(&json["attributes"]["skillsets"])?, // not sure if it really has all 8
+			ssr: etterna::Skillsets8 {
+				overall: json["attributes"]["skillsets"]["Overall"].f32_()?,
+				stream: json["attributes"]["skillsets"]["Stream"].f32_()?,
+				jumpstream: json["attributes"]["skillsets"]["Jumpstream"].f32_()?,
+				handstream: json["attributes"]["skillsets"]["Handstream"].f32_()?,
+				stamina: json["attributes"]["skillsets"]["Stamina"].f32_()?,
+				jackspeed: json["attributes"]["skillsets"]["JackSpeed"].f32_()?,
+				chordjack: json["attributes"]["skillsets"]["Chordjack"].f32_()?,
+				technical: json["attributes"]["skillsets"]["Technical"].f32_()?,
+			},
 			judgements: parse_judgements(&json["attributes"]["judgements"])?,
 			has_replay: json["attributes"]["hasReplay"].bool_()?, // API docs are wrong again
-			user: parse_score_data_user_1(&json["attributes"]["user"])?,
+			user: ScoreUser {
+				username: json["attributes"]["user"]["userName"].string()?,
+				avatar: json["attributes"]["user"]["avatar"].string()?,
+				country_code: json["attributes"]["user"]["countryCode"].string()?,
+				overall_rating: json["attributes"]["user"]["playerRating"].f32_()?,
+			},
 		})).collect()
 	}
 
@@ -581,8 +593,22 @@ impl Session {
 		let json = self.get(&format!("leaderboard/{}", country_code))?;
 
 		json.array()?.iter().map(|json| Ok(LeaderboardEntry {
-			user: parse_score_data_user_2(&json["attributes"]["user"])?,
-			rating: skillsets8_from_eo(&json["attributes"]["skillsets"])?, // not sure if it really has all 8
+			user: ScoreUser {
+				username: json["attributes"]["user"]["username"].string()?,
+				avatar: json["attributes"]["user"]["avatar"].string()?,
+				country_code: json["attributes"]["user"]["countryCode"].string()?,
+				overall_rating: json["attributes"]["user"]["Overall"].f32_()?,
+			},
+			rating: etterna::Skillsets8 {
+				overall: json["attributes"]["user"]["Overall"].f32_()?,
+				stream: json["attributes"]["skillsets"]["Stream"].f32_()?,
+				jumpstream: json["attributes"]["skillsets"]["Jumpstream"].f32_()?,
+				handstream: json["attributes"]["skillsets"]["Handstream"].f32_()?,
+				stamina: json["attributes"]["skillsets"]["Stamina"].f32_()?,
+				jackspeed: json["attributes"]["skillsets"]["JackSpeed"].f32_()?,
+				chordjack: json["attributes"]["skillsets"]["Chordjack"].f32_()?,
+				technical: json["attributes"]["skillsets"]["Technical"].f32_()?,
+			}
 		})).collect()
 	}
 
