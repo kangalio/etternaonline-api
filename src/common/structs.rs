@@ -105,8 +105,6 @@ pub struct ReplayNote {
 	pub tick: Option<u32>,
 }
 
-use thiserror::Error;
-
 /// Represents a file size
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Default)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
@@ -136,17 +134,19 @@ impl FileSize {
 	pub fn tb(self) -> u64 { self.bytes / 1_000_000_000_000 }
 }
 
-/// Error returned from `FileSize::from_str`
-#[derive(Debug, Error)]
-pub enum FileSizeParseError {
-	#[error("Given string was empty")]
-	EmptyString,
-	#[error("Error while parsing the filesize number")]
-	InvalidNumber(#[source] std::num::ParseFloatError),
-	#[error("No KB/MB/... ending")]
-	NoEnding,
-	#[error("Unknown ending (the KB/MB/... thingy)")]
-	UnexpectedEnding(String),
+thiserror_lite::err_enum! {
+	/// Error returned from `FileSize::from_str`
+	#[derive(Debug)]
+	pub enum FileSizeParseError {
+		#[error("Given string was empty")]
+		EmptyString,
+		#[error("Error while parsing the filesize number")]
+		InvalidNumber(#[from] std::num::ParseFloatError),
+		#[error("No KB/MB/... ending")]
+		NoEnding,
+		#[error("Unknown ending (the KB/MB/... thingy)")]
+		UnexpectedEnding(String),
+	}
 }
 
 impl std::str::FromStr for FileSize {

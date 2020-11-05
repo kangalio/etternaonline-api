@@ -23,53 +23,53 @@ pub mod v1;
 pub mod v2;
 pub mod web;
 
-use thiserror::Error;
-
 #[cfg(all(feature = "serde", not(feature = "serde_support")))]
 compile_error!("Use the `serde_support` feature flag instead of `serde`");
 
-#[derive(Error, Debug)]
-#[non_exhaustive]
-pub enum Error {
-	// Normal errors
-	#[error("User not found")]
-	UserNotFound,
-	#[error("Username and password combination not found")]
-	InvalidLogin,
-	#[error("Score not found")]
-	ScoreNotFound,
-	#[error("Song not found")]
-	SongNotFound,
-	#[error("Chart not tracked")]
-	ChartNotTracked,
-	#[error("Favorite already exists")]
-	ChartAlreadyFavorited,
-	#[error("Database error")]
-	DatabaseError,
-	#[error("Goal already exists")]
-	GoalAlreadyExists,
-	#[error("Chart already exists")]
-	ChartAlreadyAdded,
-	#[error("The uploaded file is not a valid XML file")]
-	InvalidXml,
-	#[error("No users registered")]
-	NoUsersFound,
-
-	// Meta errors
-	#[error("General network error ({0})")]
-	NetworkError(String),
-	#[error("Internal web server error (HTTP {status_code})")]
-	ServerIsDown { status_code: u16 },
-	#[error("Error while parsing the json sent by the server ({0})")]
-	InvalidJson(#[from] serde_json::Error),
-	#[error("Sever responded to query with an unrecognized error message ({0})")]
-	UnknownApiError(String),
-	#[error("Server sent a payload that doesn't match expectations (debug: {0:?})")]
-	InvalidDataStructure(String),
-	#[error("Server timed out")]
-	Timeout,
-	#[error("Server response was empty")]
-	EmptyServerResponse
+thiserror_lite::err_enum! {
+	#[derive(Debug)]
+	#[non_exhaustive]
+	pub enum Error {
+		// Normal errors
+		#[error("User not found")]
+		UserNotFound,
+		#[error("Username and password combination not found")]
+		InvalidLogin,
+		#[error("Score not found")]
+		ScoreNotFound,
+		#[error("Song not found")]
+		SongNotFound,
+		#[error("Chart not tracked")]
+		ChartNotTracked,
+		#[error("Favorite already exists")]
+		ChartAlreadyFavorited,
+		#[error("Database error")]
+		DatabaseError,
+		#[error("Goal already exists")]
+		GoalAlreadyExists,
+		#[error("Chart already exists")]
+		ChartAlreadyAdded,
+		#[error("The uploaded file is not a valid XML file")]
+		InvalidXml,
+		#[error("No users registered")]
+		NoUsersFound,
+	
+		// Meta errors
+		#[error("General network error ({0})")]
+		NetworkError(String),
+		#[error("Internal web server error (HTTP {status_code})")]
+		ServerIsDown { status_code: u16 },
+		#[error("Error while parsing the json sent by the server ({0})")]
+		InvalidJson(#[from] serde_json::Error),
+		#[error("Sever responded to query with an unrecognized error message ({0})")]
+		UnknownApiError(String),
+		#[error("Server sent a payload that doesn't match expectations (debug: {0:?})")]
+		InvalidDataStructure(String),
+		#[error("Server timed out")]
+		Timeout,
+		#[error("Server response was empty")]
+		EmptyServerResponse
+	}
 }
 
 impl From<std::io::Error> for Error {
