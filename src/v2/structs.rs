@@ -5,7 +5,7 @@ use etterna::*;
 
 /// Details about a user. See [`Session::user_details`](super::Session::user_details)
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct UserDetails {
 	pub username: String,
 	pub about_me: String,
@@ -13,6 +13,7 @@ pub struct UserDetails {
 	pub is_patreon: bool,
 	pub avatar_url: String,
 	pub country_code: String,
+	// TODO: rename to overall_rating
 	pub player_rating: f32,
 	pub default_modifiers: Option<String>,
 	pub rating: Skillsets8,
@@ -20,7 +21,7 @@ pub struct UserDetails {
 
 /// Score from a top scores enumeration like [`Session::user_top_10_scores`](super::Session::user_top_10_scores)
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct TopScore {
 	pub scorekey: Scorekey,
 	pub song_name: String,
@@ -34,7 +35,7 @@ pub struct TopScore {
 
 /// Score from a latest scores enumeration like [`Session::user_latest_scores`](super::Session::user_latest_scores)
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct LatestScore {
 	pub scorekey: Scorekey,
 	pub song_name: String,
@@ -47,7 +48,7 @@ pub struct LatestScore {
 
 /// Score from a [top scores per skillset enumeration](super::Session::user_top_scores_per_skillset)
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct TopScorePerSkillset {
 	pub song_name: String,
 	pub rate: Rate,
@@ -60,7 +61,7 @@ pub struct TopScorePerSkillset {
 
 /// User's best scores in each skillset category. See [`Session::user_top_scores_per_skillset`](super::Session::user_top_scores_per_skillset)
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct UserTopScoresPerSkillset {
 	pub overall: Vec<TopScorePerSkillset>,
 	pub stream: Vec<TopScorePerSkillset>,
@@ -74,7 +75,7 @@ pub struct UserTopScoresPerSkillset {
 
 /// Generic information about a score
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreData {
 	pub scorekey: Scorekey,
 	pub modifiers: String,
@@ -94,7 +95,7 @@ pub struct ScoreData {
 
 /// User information contained within a score information struct
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreUser {
 	pub username: String,
 	pub avatar: String,
@@ -104,7 +105,7 @@ pub struct ScoreUser {
 
 /// Score information in the context of a [chart leaderboard](super::Session::chart_leaderboard)
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct ChartLeaderboardScore {
 	pub scorekey: Scorekey,
 	pub ssr: Skillsets8,
@@ -122,7 +123,7 @@ pub struct ChartLeaderboardScore {
 
 /// Entry in a score leaderboard
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct LeaderboardEntry {
 	pub user: ScoreUser,
 	pub rating: Skillsets8,
@@ -130,7 +131,7 @@ pub struct LeaderboardEntry {
 
 /// Score goal
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreGoal {
 	pub chartkey: Chartkey,
 	pub rate: Rate,

@@ -16,15 +16,15 @@ Etterna terminology:
 For detailed usage documentation, see [`v1::Session`] and [`v2::Session`]
 */
 
+#[cfg(feature = "serde")]
+extern crate serde_ as serde;
+
 mod extension_traits;
 #[macro_use] mod common;
 pub use common::structs::*;
 pub mod v1;
 pub mod v2;
 pub mod web;
-
-#[cfg(all(feature = "serde", not(feature = "serde_support")))]
-compile_error!("Use the `serde_support` feature flag instead of `serde`");
 
 thiserror_lite::err_enum! {
 	#[derive(Debug)]

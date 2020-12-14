@@ -12,7 +12,7 @@ use etterna::prelude::*;
 ///   If a replay has tick information, it will definitely also have both note type and lane
 ///   information.
 #[derive(Debug, PartialEq, Clone, Default)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct Replay {
 	pub notes: Vec<ReplayNote>,
 }
@@ -89,7 +89,7 @@ impl etterna::SimpleReplay for Replay {
 
 /// A singular note, used inside [`Replay`]
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct ReplayNote {
 	/// The position of the note inside the chart, in seconds. **Note: EO returns slightly incorrect
 	/// values here!**
@@ -107,7 +107,7 @@ pub struct ReplayNote {
 
 /// Represents a file size
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Default)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
 pub struct FileSize {
 	bytes: u64,
 }
