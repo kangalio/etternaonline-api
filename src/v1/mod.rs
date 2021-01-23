@@ -1,9 +1,8 @@
 mod structs;
 pub use structs::*;
 
-use crate::Error;
 use crate::extension_traits::*;
-
+use crate::Error;
 
 fn skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets8, Error> {
 	Ok(etterna::Skillsets8 {
@@ -19,12 +18,12 @@ fn skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets8, Er
 }
 
 /// EtternaOnline API session client, handles all requests to and from EtternaOnline.
-/// 
+///
 /// This handler has rate-limiting built-in. Please do make use of it - the EO server is brittle and
 /// funded entirely by donations.
-/// 
+///
 /// Initialize a session using [`Session::new`]
-/// 
+///
 /// # Example
 /// ```rust,no_run
 /// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -36,9 +35,9 @@ fn skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets8, Er
 /// 	std::time::Duration::from_millis(2000), // Wait 2s inbetween requests
 /// 	None, // No request timeout
 /// );
-/// 
+///
 /// println!("Details about kangalioo: {:?}", session.user_data("kangalioo")?);
-/// 
+///
 /// let best_score = session.user_top_scores("kangalioo", Skillset8::Overall, 1)?[0];
 /// println!(
 /// 	"kangalioo's best score has {} misses",
@@ -60,7 +59,9 @@ impl Session {
 		timeout: Option<std::time::Duration>,
 	) -> Self {
 		Self {
-			api_key, cooldown, timeout,
+			api_key,
+			cooldown,
+			timeout,
 			last_request: std::sync::Mutex::new(std::time::Instant::now() - cooldown),
 		}
 	}
@@ -90,17 +91,17 @@ impl Session {
 				"No users for specified country" => Error::NoUsersFound,
 				"Score not found" => Error::ScoreNotFound,
 				other => Error::UnknownApiError(other.to_owned()),
-			})
+			});
 		}
 
 		Ok(json)
 	}
 
 	/// Retrieves detailed metadata about the score with the given id.
-	/// 
+	///
 	/// # Errors
 	/// - [`Error::ScoreNotFound`] if the given song id doesn't exist
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -108,7 +109,7 @@ impl Session {
 	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let song = session.song_data(2858)?;
-	/// 
+	///
 	/// assert_eq!(song.name, "Game Time");
 	/// # Ok(()) }
 	/// ```
@@ -130,28 +131,42 @@ impl Session {
 			banner_url: json["banner"].string_maybe()?,
 			background_url: json["banner"].string_maybe()?,
 			cdtitle: json["cdtitle"].string_maybe()?,
-			charts: json["charts"].array()?.iter().map(|json| Ok(SongChartData {
-				chartkey: json["chartkey"].parse()?,
-				msd: json["msd"].parse()?,
-				difficulty: json["difficulty"].parse()?,
-				is_blacklisted: json["blacklisted"].bool_int_string()?,
-				leaderboard: json["leaderboard"].array()?.iter().map(|json| Ok(SongChartLeaderboardEntry {
-					username: json["username"].string()?,
-					wifescore: json["wifescore"].wifescore_proportion_string()?,
-					ssr_overall: json["Overall"].f32_()?,
-					rate: json["user_chart_rate_rate"].parse()?,
-					datetime: json["datetime"].string()?,
-				})).collect::<Result<Vec<SongChartLeaderboardEntry>, Error>>()?,
-			})).collect::<Result<Vec<SongChartData>, Error>>()?,
-			packs: json["packs"].array()?.iter().map(|v| Ok(
-				v.string()?
-			)).collect::<Result<Vec<String>, Error>>()?,
+			charts: json["charts"]
+				.array()?
+				.iter()
+				.map(|json| {
+					Ok(SongChartData {
+						chartkey: json["chartkey"].parse()?,
+						msd: json["msd"].parse()?,
+						difficulty: json["difficulty"].parse()?,
+						is_blacklisted: json["blacklisted"].bool_int_string()?,
+						leaderboard: json["leaderboard"]
+							.array()?
+							.iter()
+							.map(|json| {
+								Ok(SongChartLeaderboardEntry {
+									username: json["username"].string()?,
+									wifescore: json["wifescore"].wifescore_proportion_string()?,
+									ssr_overall: json["Overall"].f32_()?,
+									rate: json["user_chart_rate_rate"].parse()?,
+									datetime: json["datetime"].string()?,
+								})
+							})
+							.collect::<Result<Vec<SongChartLeaderboardEntry>, Error>>()?,
+					})
+				})
+				.collect::<Result<Vec<SongChartData>, Error>>()?,
+			packs: json["packs"]
+				.array()?
+				.iter()
+				.map(|v| Ok(v.string()?))
+				.collect::<Result<Vec<String>, Error>>()?,
 		})
 	}
 
 	/// Retrieves an Etterna version string. I don't know what this specific version string stands
 	/// for. Maybe the minimum version that the site was tested with? I don't know
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -167,7 +182,7 @@ impl Session {
 	}
 
 	/// Retrieve the link where you can register for an EO account
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -183,7 +198,7 @@ impl Session {
 	}
 
 	/// Retrieves a list of all packs tracked on EO
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -191,7 +206,7 @@ impl Session {
 	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let pack_list = session.pack_list()?;
-	/// 
+	///
 	/// // As of 2020-07-25
 	/// assert_eq!(pack_list[0].name, "'c**t");
 	/// assert_eq!(pack_list[1].name, "'d");
@@ -199,23 +214,28 @@ impl Session {
 	/// ```
 	pub fn pack_list(&self) -> Result<Vec<PackEntry>, Error> {
 		let json = self.request("pack_list", &[])?;
-		json.array()?.iter().map(|json| Ok(PackEntry {
-			id: json["packid"].u32_()?,
-			name: json["packname"].string()?,
-			average_msd: json["average"].f32_()?,
-			date_added: json["date"].string()?,
-			download_link: json["download"].string()?,
-			download_link_mirror: json["mirror"].string()?,
-			size: FileSize::from_bytes(json["size"].u64_()?),
-		})).collect()
+		json.array()?
+			.iter()
+			.map(|json| {
+				Ok(PackEntry {
+					id: json["packid"].u32_()?,
+					name: json["packname"].string()?,
+					average_msd: json["average"].f32_()?,
+					date_added: json["date"].string()?,
+					download_link: json["download"].string()?,
+					download_link_mirror: json["mirror"].string()?,
+					size: FileSize::from_bytes(json["size"].u64_()?),
+				})
+			})
+			.collect()
 	}
 
 	/// Retrieves the leaderboard for a chart, which includes the replay data for each leaderboard
 	/// entry
-	/// 
+	///
 	/// # Errors
 	/// - [`Error::ChartNotTracked`] if the given chartkey is not tracked on EO
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -226,44 +246,52 @@ impl Session {
 	/// assert_eq!(leaderboard[0].user.username, "kangalioo"); // As of 2020-07-25
 	/// # Ok(()) }
 	/// ```
-	pub fn chart_leaderboard(&self, chartkey: impl AsRef<str>) -> Result<Vec<ChartLeaderboardEntry>, Error> {
+	pub fn chart_leaderboard(
+		&self,
+		chartkey: impl AsRef<str>,
+	) -> Result<Vec<ChartLeaderboardEntry>, Error> {
 		let json = self.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])?;
-		json.array()?.iter().map(|json| Ok(ChartLeaderboardEntry {
-			ssr: skillsets_from_eo(&json)?,
-			wifescore: json["wifescore"].wifescore_proportion_string()?,
-			max_combo: json["maxcombo"].parse()?,
-			is_valid: json["valid"].bool_int_string()?,
-			modifiers: json["modifiers"].string()?,
-			judgements: etterna::FullJudgements {
-				marvelouses: json["marv"].parse()?,
-				perfects: json["perfect"].parse()?,
-				greats: json["great"].parse()?,
-				goods: json["good"].parse()?,
-				bads: json["bad"].parse()?,
-				misses: json["miss"].parse()?,
-				hit_mines: json["hitmine"].parse()?,
-				held_holds: json["held"].parse()?,
-				let_go_holds: json["letgo"].parse()?,
-				missed_holds: json["missedhold"].parse()?,
-			},
-			datetime: json["datetime"].string()?,
-			has_chord_cohesion: !json["nocc"].bool_int_string()?,
-			rate: json["user_chart_rate_rate"].parse()?,
-			user: User {
-				username: json["username"].string()?,
-				avatar: json["avatar"].string()?,
-				country_code: json["countrycode"].string_maybe()?,
-				rating: json["player_rating"].parse()?,
-			},
-			replay: crate::common::parse_replay(&json["replay"])?,
-		})).collect()
+		json.array()?
+			.iter()
+			.map(|json| {
+				Ok(ChartLeaderboardEntry {
+					ssr: skillsets_from_eo(&json)?,
+					wifescore: json["wifescore"].wifescore_proportion_string()?,
+					max_combo: json["maxcombo"].parse()?,
+					is_valid: json["valid"].bool_int_string()?,
+					modifiers: json["modifiers"].string()?,
+					judgements: etterna::FullJudgements {
+						marvelouses: json["marv"].parse()?,
+						perfects: json["perfect"].parse()?,
+						greats: json["great"].parse()?,
+						goods: json["good"].parse()?,
+						bads: json["bad"].parse()?,
+						misses: json["miss"].parse()?,
+						hit_mines: json["hitmine"].parse()?,
+						held_holds: json["held"].parse()?,
+						let_go_holds: json["letgo"].parse()?,
+						missed_holds: json["missedhold"].parse()?,
+					},
+					datetime: json["datetime"].string()?,
+					has_chord_cohesion: !json["nocc"].bool_int_string()?,
+					rate: json["user_chart_rate_rate"].parse()?,
+					user: User {
+						username: json["username"].string()?,
+						avatar: json["avatar"].string()?,
+						country_code: json["countrycode"].string_maybe()?,
+						rating: json["player_rating"].parse()?,
+					},
+					replay: crate::common::parse_replay(&json["replay"])?,
+				})
+			})
+			.collect()
 	}
 
 	/// Retrieves the user's ten latest scores
-	/// 
+	///
 	/// # Errors
 	/// - [`Error::UserNotFound`] if the specified user does not exist
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -277,19 +305,24 @@ impl Session {
 	pub fn user_latest_10_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
 		let json = self.request("last_user_session", &[("username", username)])?;
 
-		json.array()?.iter().map(|json| Ok(LatestScore {
-			song_name: json["songname"].string()?,
-			rate: json["user_chart_rate_rate"].parse()?,
-			ssr_overall: json["Overall"].parse()?,
-			wifescore: json["wifescore"].wifescore_proportion_string()?,
-		})).collect()
+		json.array()?
+			.iter()
+			.map(|json| {
+				Ok(LatestScore {
+					song_name: json["songname"].string()?,
+					rate: json["user_chart_rate_rate"].parse()?,
+					ssr_overall: json["Overall"].parse()?,
+					wifescore: json["wifescore"].wifescore_proportion_string()?,
+				})
+			})
+			.collect()
 	}
 
 	/// Retrieves detailed data about the user
-	/// 
+	///
 	/// # Errors
 	/// - [`Error::UserNotFound`] if the specified user does not exist
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -297,7 +330,7 @@ impl Session {
 	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let me = session.user_data("kangalioo")?;
-	/// 
+	///
 	/// assert_eq!(me.country_code, Some("DE".into()));
 	/// assert_eq!(me.is_moderator, false);
 	/// # Ok(()) }
@@ -306,14 +339,15 @@ impl Session {
 		let json = self.request("user_data", &[("username", username)])?;
 
 		Ok(UserData {
-			user_name: json["username"].string()?, // "kangalioo"
+			user_name: json["username"].string()?,     // "kangalioo"
 			about_me: json["aboutme"].string_maybe()?, // "<p>I'm a very, very mysterious person.</p>"
 			country_code: json["countrycode"].string_maybe()?, // "DE"
 			is_moderator: json["moderator"].bool_int_string()?, // "0"
-			avatar: json["avatar"].string()?, // "251c375b7c64494a304ea4d3a55afa92.jpg"
+			avatar: json["avatar"].string()?,          // "251c375b7c64494a304ea4d3a55afa92.jpg"
 			default_modifiers: json["default_modifiers"].string_maybe()?, // null
 			rating: skillsets_from_eo(&json)?,
-			is_patreon: if json["Patreon"].is_null() { // null
+			is_patreon: if json["Patreon"].is_null() {
+				// null
 				false
 			} else {
 				json["Patreon"].bool_int_string()?
@@ -322,10 +356,10 @@ impl Session {
 	}
 
 	/// Retrieves the user's rank for each skillset, including overall
-	/// 
+	///
 	/// # Errors
 	/// - [`Error::UserNotFound`] if the specified user does not exist
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -333,7 +367,7 @@ impl Session {
 	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let ranks = session.user_ranks("kangalioo")?;
-	/// 
+	///
 	/// // As of 2020-07-25 (who knows)
 	/// assert!(ranks.handstream < ranks.jackspeed);
 	/// # Ok(()) }
@@ -352,8 +386,16 @@ impl Session {
 			technical: json["Technical"].parse()?,
 		};
 
-		let user_rank_when_user_not_found = etterna::UserRank { overall: 1, stream: 1, jumpstream: 1,
-			handstream: 1, stamina: 1, jackspeed: 1, chordjack: 1, technical: 1 };
+		let user_rank_when_user_not_found = etterna::UserRank {
+			overall: 1,
+			stream: 1,
+			jumpstream: 1,
+			handstream: 1,
+			stamina: 1,
+			jackspeed: 1,
+			chordjack: 1,
+			technical: 1,
+		};
 		if user_rank == user_rank_when_user_not_found {
 			return Err(Error::UserNotFound);
 		}
@@ -362,13 +404,13 @@ impl Session {
 	}
 
 	/// Retrieve the user's top scores, either overall or in a specific skillset
-	/// 
+	///
 	/// If the number of requested results exceeds the total number of scores, or if number is zero,
 	/// all scores are returned
-	/// 
+	///
 	/// # Errors
 	/// - [`Error::UserNotFound`] if the specified user does not exist
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -380,50 +422,68 @@ impl Session {
 	/// 	Skillset8::Jumpstream,
 	/// 	5,
 	/// )?;
-	/// 
+	///
 	/// assert_eq!(&top_jumpstream_scores[0].song_name, "Everytime I hear Your Name");
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_scores(&self,
+	pub fn user_top_scores(
+		&self,
 		username: &str,
 		skillset: etterna::Skillset8,
-		number: u32
+		number: u32,
 	) -> Result<Vec<TopScore>, Error> {
-		let json = self.request("user_top_scores", &[
-			("username", username),
-			("ss", skillset.into_skillset7().map(crate::common::skillset_to_eo).unwrap_or("")),
-			("num", &number.to_string()),
-		])?;
-		
-		json.array()?.iter().map(|json| Ok(TopScore {
-			song_name: json["songname"].string()?, // "Everytime I hear Your Name"
-			rate: json["user_chart_rate_rate"].parse()?, // "1.40"
-			ssr_overall: json["Overall"].parse()?, // "30.78"
-			wifescore: json["wifescore"].wifescore_proportion_string()?, // "0.96986"
-			chartkey: json["chartkey"].parse()?, // "X4b537c03eb1f72168f51a0ab92f8a58a62fbe4b4"
-			scorekey: json["scorekey"].parse()?, // "S11f0f01ab55220ebbf4e0e5ee28d36cce9a72721"
-			difficulty: json["difficulty"].parse()?, // "Hard"
-		})).collect()
+		let json = self.request(
+			"user_top_scores",
+			&[
+				("username", username),
+				(
+					"ss",
+					skillset
+						.into_skillset7()
+						.map(crate::common::skillset_to_eo)
+						.unwrap_or(""),
+				),
+				("num", &number.to_string()),
+			],
+		)?;
+
+		json.array()?
+			.iter()
+			.map(|json| {
+				Ok(TopScore {
+					song_name: json["songname"].string()?, // "Everytime I hear Your Name"
+					rate: json["user_chart_rate_rate"].parse()?, // "1.40"
+					ssr_overall: json["Overall"].parse()?, // "30.78"
+					wifescore: json["wifescore"].wifescore_proportion_string()?, // "0.96986"
+					chartkey: json["chartkey"].parse()?,   // "X4b537c03eb1f72168f51a0ab92f8a58a62fbe4b4"
+					scorekey: json["scorekey"].parse()?,   // "S11f0f01ab55220ebbf4e0e5ee28d36cce9a72721"
+					difficulty: json["difficulty"].parse()?, // "Hard"
+				})
+			})
+			.collect()
 	}
 
-	fn generic_leaderboard(&self,
-		params: &[(&str, &str)]
-	) -> Result<Vec<LeaderboardEntry>, Error> {
+	fn generic_leaderboard(&self, params: &[(&str, &str)]) -> Result<Vec<LeaderboardEntry>, Error> {
 		let json = self.request("leaderboard", params)?;
 
-		json.array()?.iter().map(|json| Ok(LeaderboardEntry {
-			username: json["username"].string()?,
-			avatar: json["avatar"].string()?,
-			rating: skillsets_from_eo(json)?,
-			country_code: json["countrycode"].string()?,
-		})).collect()
+		json.array()?
+			.iter()
+			.map(|json| {
+				Ok(LeaderboardEntry {
+					username: json["username"].string()?,
+					avatar: json["avatar"].string()?,
+					rating: skillsets_from_eo(json)?,
+					country_code: json["countrycode"].string()?,
+				})
+			})
+			.collect()
 	}
 
 	/// Retrieves the top 10 players in the given country
-	/// 
+	///
 	/// # Errors
 	/// - [`Error::NoUsersFound`] if there are no users registered in this country
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -431,7 +491,7 @@ impl Session {
 	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let leaderboard = session.country_leaderboard("DE")?;
-	/// 
+	///
 	/// println!(
 	/// 	"The best German Etterna player is {} with a rating of {}",
 	/// 	leaderboard[0].username,
@@ -439,14 +499,12 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn country_leaderboard(&self,
-		country_code: &str,
-	) -> Result<Vec<LeaderboardEntry>, Error> {
+	pub fn country_leaderboard(&self, country_code: &str) -> Result<Vec<LeaderboardEntry>, Error> {
 		self.generic_leaderboard(&[("cc", country_code)])
 	}
 
 	/// Retrieves the top 10 players worldwide
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -454,7 +512,7 @@ impl Session {
 	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let leaderboard = session.global_leaderboard()?;
-	/// 
+	///
 	/// println!(
 	/// 	"The world's best Etterna player is {} with a rating of {}",
 	/// 	leaderboard[0].username,
@@ -467,10 +525,10 @@ impl Session {
 	}
 
 	/// Retrieves detailed metadata and the replay data about the score with the given scorekey.
-	/// 
+	///
 	/// # Errors
 	/// - [`Error::ScoreNotFound`] if the supplied scorekey was not found
-	/// 
+	///
 	/// # Example
 	/// ```rust,no_run
 	/// # fn main() -> Result<(), etternaonline_api::Error> {
@@ -478,7 +536,7 @@ impl Session {
 	/// # use etterna::*;
 	/// # let mut session: Session = unimplemented!();
 	/// let score_info = session.score_data("S11f0f01ab55220ebbf4e0e5ee28d36cce9a72722")?;
-	/// 
+	///
 	/// assert_eq!(score_info.max_combo, 1026);
 	/// # Ok(()) }
 	/// ```
@@ -518,7 +576,7 @@ impl Session {
 				name: json["songname"].string()?,
 				artist: json["artist"].string()?,
 				id: json["id"].parse()?,
-			}
+			},
 		})
 	}
 }

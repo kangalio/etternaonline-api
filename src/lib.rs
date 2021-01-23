@@ -1,4 +1,10 @@
-#![allow(clippy::len_zero, clippy::tabs_in_doc_comments, clippy::collapsible_if, clippy::needless_bool, clippy::too_many_arguments)]
+#![allow(
+	clippy::len_zero,
+	clippy::tabs_in_doc_comments,
+	clippy::collapsible_if,
+	clippy::needless_bool,
+	clippy::too_many_arguments
+)]
 
 /*!
 This crate provides an ergonomic wrapper around the v1, v2 and web API of
@@ -20,7 +26,8 @@ For detailed usage documentation, see [`v1::Session`] and [`v2::Session`]
 extern crate serde_ as serde;
 
 mod extension_traits;
-#[macro_use] mod common;
+#[macro_use]
+mod common;
 pub use common::structs::*;
 pub mod v1;
 pub mod v2;
@@ -53,7 +60,7 @@ thiserror_lite::err_enum! {
 		InvalidXml,
 		#[error("No users registered")]
 		NoUsersFound,
-	
+
 		// Meta errors
 		#[error("General network error ({0})")]
 		NetworkError(String),
@@ -73,19 +80,16 @@ thiserror_lite::err_enum! {
 }
 
 impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Self {
+	fn from(e: std::io::Error) -> Self {
 		if e.kind() == std::io::ErrorKind::TimedOut {
 			Self::Timeout
 		} else {
 			Self::NetworkError(e.to_string())
 		}
-    }
+	}
 }
 
-fn rate_limit(
-	last_request: &mut std::time::Instant,
-	request_cooldown: std::time::Duration
-) {
+fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time::Duration) {
 	let now = std::time::Instant::now();
 	let time_since_last_request = now.duration_since(*last_request);
 	if time_since_last_request < request_cooldown {
@@ -96,10 +100,10 @@ fn rate_limit(
 
 /// This only works with 4k replays at the moment! All notes beyond the first four columns are
 /// discarded
-/// 
+///
 /// If the replay doesn't have sufficient information, None is returned (see
 /// [`Replay::split_into_lanes`])
-/// 
+///
 /// Panics if the replay contains NaN
 pub fn rescore<S, W>(
 	replay: &Replay,

@@ -1,10 +1,10 @@
 use etterna::prelude::*;
 
 /// Replay data, contains [`ReplayNote`]
-/// 
+///
 /// Some replays don't have tick information. Some replays have neither tick nor note type
 /// information. Some replays have neither tick nor note type nor lane information.
-/// 
+///
 /// There _are_ some guarantees (judging after expirementation with EO):
 /// - If one replay note has a certain piece of data, all other replay notes in that replay will
 ///   will also have that piece of data.
@@ -12,7 +12,11 @@ use etterna::prelude::*;
 ///   If a replay has tick information, it will definitely also have both note type and lane
 ///   information.
 #[derive(Debug, PartialEq, Clone, Default)]
-#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "serde",
+	serde(crate = "serde_"),
+	derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct Replay {
 	pub notes: Vec<ReplayNote>,
 }
@@ -22,32 +26,50 @@ impl Replay {
 	/// a note was missed, it has no entry in the hit seconds vector - logically, because there
 	/// _was_ no hit, hence the miss. A consequence of this is that the nth note second array will
 	/// probably not have the same length as the nth hit second array.
-	/// 
+	///
 	/// Also, this function will discard anything not related to straight tapping, that is, mines,
 	/// lifts... Also, everything above 4k will be discarded as well.
-	/// 
+	///
 	/// If this replay file adheres to the usual Etterna replay ordering, the second lists (hits)
 	/// will be sorted ascendingly.
-	/// 
+	///
 	/// If this replay doesn't have lane and note_type information, None is returned.
 	pub fn split_into_lanes(&self) -> Option<[NoteAndHitSeconds; 4]> {
 		let mut lanes = [
-			NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
-			NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
-			NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
-			NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+			NoteAndHitSeconds {
+				note_seconds: vec![],
+				hit_seconds: vec![],
+			},
+			NoteAndHitSeconds {
+				note_seconds: vec![],
+				hit_seconds: vec![],
+			},
+			NoteAndHitSeconds {
+				note_seconds: vec![],
+				hit_seconds: vec![],
+			},
+			NoteAndHitSeconds {
+				note_seconds: vec![],
+				hit_seconds: vec![],
+			},
 		];
 
 		for note in self.notes.iter() {
-			if note.lane? >= 4 { continue }
+			if note.lane? >= 4 {
+				continue;
+			}
 
-			if !(note.note_type? == etterna::NoteType::Tap || note.note_type? == etterna::NoteType::HoldHead) {
+			if !(note.note_type? == etterna::NoteType::Tap
+				|| note.note_type? == etterna::NoteType::HoldHead)
+			{
 				continue;
 			}
 
 			lanes[note.lane? as usize].note_seconds.push(note.time);
 			if let etterna::Hit::Hit { deviation } = note.hit {
-				lanes[note.lane? as usize].hit_seconds.push(note.time + deviation);
+				lanes[note.lane? as usize]
+					.hit_seconds
+					.push(note.time + deviation);
 			}
 		}
 
@@ -56,9 +78,9 @@ impl Replay {
 
 	/// Like [`Self::split_into_lanes`], but it doesn't split by lane. Instead, everything is put
 	/// into one big vector instead.
-	/// 
+	///
 	/// Even non-4k notes are included in this function's result!
-	/// 
+	///
 	/// If this replay doesn't have note type information, None is returned.
 	pub fn split_into_notes_and_hits(&self) -> Option<NoteAndHitSeconds> {
 		let mut result = NoteAndHitSeconds {
@@ -67,7 +89,9 @@ impl Replay {
 		};
 
 		for note in self.notes.iter() {
-			if !(note.note_type? == etterna::NoteType::Tap || note.note_type? == etterna::NoteType::HoldHead) {
+			if !(note.note_type? == etterna::NoteType::Tap
+				|| note.note_type? == etterna::NoteType::HoldHead)
+			{
 				continue;
 			}
 
@@ -89,7 +113,11 @@ impl etterna::SimpleReplay for Replay {
 
 /// A singular note, used inside [`Replay`]
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "serde",
+	serde(crate = "serde_"),
+	derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct ReplayNote {
 	/// The position of the note inside the chart, in seconds. **Note: EO returns slightly incorrect
 	/// values here!**
@@ -107,7 +135,11 @@ pub struct ReplayNote {
 
 /// Represents a file size
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Default)]
-#[cfg_attr(feature = "serde", serde(crate = "serde_"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "serde",
+	serde(crate = "serde_"),
+	derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct FileSize {
 	bytes: u64,
 }
@@ -119,19 +151,29 @@ impl FileSize {
 	}
 
 	/// Get the number of bytes
-	pub fn bytes(self) -> u64 { self.bytes }
+	pub fn bytes(self) -> u64 {
+		self.bytes
+	}
 
 	/// Get the number of kilobytes, rounded down
-	pub fn kb(self) -> u64 { self.bytes / 1_000 }
+	pub fn kb(self) -> u64 {
+		self.bytes / 1_000
+	}
 
 	/// Get the number of megabytes, rounded down
-	pub fn mb(self) -> u64 { self.bytes / 1_000_000 }
+	pub fn mb(self) -> u64 {
+		self.bytes / 1_000_000
+	}
 
 	/// Get the number of gigabytes, rounded down
-	pub fn gb(self) -> u64 { self.bytes / 1_000_000_000 }
+	pub fn gb(self) -> u64 {
+		self.bytes / 1_000_000_000
+	}
 
 	/// Get the number of terabytes, rounded down
-	pub fn tb(self) -> u64 { self.bytes / 1_000_000_000_000 }
+	pub fn tb(self) -> u64 {
+		self.bytes / 1_000_000_000_000
+	}
 }
 
 thiserror_lite::err_enum! {
@@ -154,20 +196,23 @@ impl std::str::FromStr for FileSize {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let mut token_iter = s.split_whitespace();
-		let number: f64 = token_iter.next().ok_or(FileSizeParseError::EmptyString)?
-			.parse().map_err(FileSizeParseError::InvalidNumber)?;
+		let number: f64 = token_iter
+			.next()
+			.ok_or(FileSizeParseError::EmptyString)?
+			.parse()
+			.map_err(FileSizeParseError::InvalidNumber)?;
 		let ending = token_iter.next().ok_or(FileSizeParseError::NoEnding)?;
 
 		let ending = ending.to_lowercase();
 		let multiplier: u64 = match &ending as &str {
-			"b"	  => 1,
-			"kb"  => 1000,
+			"b" => 1,
+			"kb" => 1000,
 			"kib" => 1024,
-			"mb"  => 1000 * 1000,
+			"mb" => 1000 * 1000,
 			"mib" => 1024 * 1024,
-			"gb"  => 1000 * 1000 * 1000,
+			"gb" => 1000 * 1000 * 1000,
 			"gib" => 1024 * 1024 * 1024,
-			"tb"  => 1000 * 1000 * 1000 * 1000,
+			"tb" => 1000 * 1000 * 1000 * 1000,
 			"tib" => 1024 * 1024 * 1024 * 1024,
 			_ => return Err(FileSizeParseError::UnexpectedEnding(ending)),
 		};
@@ -182,13 +227,45 @@ mod tests {
 
 	#[test]
 	fn test_split_replay() {
-		let replay = Replay { notes: vec![
-			ReplayNote { time: 0.0, hit: etterna::Hit::Hit { deviation: 0.15 }, lane: Some(0), note_type: Some(NoteType::Tap), tick: None},
-			ReplayNote { time: 1.0, hit: etterna::Hit::Hit { deviation: -0.03 }, lane: Some(1), note_type: Some(NoteType::Tap), tick: None},
-			ReplayNote { time: 2.0, hit: etterna::Hit::Miss, lane: Some(2), note_type: Some(NoteType::Tap), tick: None},
-			ReplayNote { time: 3.0, hit: etterna::Hit::Hit { deviation: 0.50 }, lane: Some(3), note_type: Some(NoteType::Tap), tick: None},
-			ReplayNote { time: 4.0, hit: etterna::Hit::Hit { deviation: 0.15 }, lane: Some(0), note_type: Some(NoteType::Tap), tick: None},
-		] };
+		let replay = Replay {
+			notes: vec![
+				ReplayNote {
+					time: 0.0,
+					hit: etterna::Hit::Hit { deviation: 0.15 },
+					lane: Some(0),
+					note_type: Some(NoteType::Tap),
+					tick: None,
+				},
+				ReplayNote {
+					time: 1.0,
+					hit: etterna::Hit::Hit { deviation: -0.03 },
+					lane: Some(1),
+					note_type: Some(NoteType::Tap),
+					tick: None,
+				},
+				ReplayNote {
+					time: 2.0,
+					hit: etterna::Hit::Miss,
+					lane: Some(2),
+					note_type: Some(NoteType::Tap),
+					tick: None,
+				},
+				ReplayNote {
+					time: 3.0,
+					hit: etterna::Hit::Hit { deviation: 0.50 },
+					lane: Some(3),
+					note_type: Some(NoteType::Tap),
+					tick: None,
+				},
+				ReplayNote {
+					time: 4.0,
+					hit: etterna::Hit::Hit { deviation: 0.15 },
+					lane: Some(0),
+					note_type: Some(NoteType::Tap),
+					tick: None,
+				},
+			],
+		};
 
 		assert_eq!(
 			replay.split_into_notes_and_hits(),
@@ -227,14 +304,26 @@ mod tests {
 				hit_seconds: vec![],
 			})
 		);
-		
+
 		assert_eq!(
 			Replay { notes: vec![] }.split_into_lanes(),
 			Some([
-				NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
-				NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
-				NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
-				NoteAndHitSeconds { note_seconds: vec![], hit_seconds: vec![] },
+				NoteAndHitSeconds {
+					note_seconds: vec![],
+					hit_seconds: vec![]
+				},
+				NoteAndHitSeconds {
+					note_seconds: vec![],
+					hit_seconds: vec![]
+				},
+				NoteAndHitSeconds {
+					note_seconds: vec![],
+					hit_seconds: vec![]
+				},
+				NoteAndHitSeconds {
+					note_seconds: vec![],
+					hit_seconds: vec![]
+				},
 			])
 		);
 	}

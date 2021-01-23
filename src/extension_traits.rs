@@ -16,9 +16,10 @@ impl ExtractStr for &str {
 pub(crate) trait JsonValueExt: Sized {
 	fn get(&self) -> &serde_json::Value;
 
-	fn attempt_get<'val, 'content: 'val, T: 'content>(&'val self,
+	fn attempt_get<'val, 'content: 'val, T: 'content>(
+		&'val self,
 		what_is_expected: &str,
-		action: impl FnOnce(&'val serde_json::Value) -> Option<T>
+		action: impl FnOnce(&'val serde_json::Value) -> Option<T>,
 	) -> Result<T, Error> {
 		match action(self.get()) {
 			Some(result) => Ok(result),
@@ -29,7 +30,7 @@ pub(crate) trait JsonValueExt: Sized {
 					msg += "...";
 				}
 				msg
-			}))
+			})),
 		}
 	}
 
@@ -42,11 +43,13 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn string_maybe(&self) -> Result<Option<String>, Error> {
-		self.attempt_get("null or a string", |j| Some(if j.is_null() {
-			None
-		} else {
-			Some(j.as_str()?.to_owned())
-		}))
+		self.attempt_get("null or a string", |j| {
+			Some(if j.is_null() {
+				None
+			} else {
+				Some(j.as_str()?.to_owned())
+			})
+		})
 	}
 
 	fn array(&self) -> Result<&Vec<serde_json::Value>, Error> {
@@ -107,22 +110,33 @@ pub(crate) trait JsonValueExt: Sized {
 	}
 
 	fn rate_float(&self) -> Result<etterna::Rate, Error> {
-		self.attempt_get("rate float", |j| etterna::Rate::from_f32(j.as_f64()? as f32))
+		self.attempt_get(
+			"rate float",
+			|j| etterna::Rate::from_f32(j.as_f64()? as f32),
+		)
 	}
 
 	fn wifescore_percent_float(&self) -> Result<etterna::Wifescore, Error> {
-		self.attempt_get("wifescore percent float", |j| etterna::Wifescore::from_percent(j.as_f64()? as f32))
+		self.attempt_get("wifescore percent float", |j| {
+			etterna::Wifescore::from_percent(j.as_f64()? as f32)
+		})
 	}
 
 	fn wifescore_proportion_float(&self) -> Result<etterna::Wifescore, Error> {
-		self.attempt_get("wifescore proportion float", |j| etterna::Wifescore::from_proportion(j.as_f64()? as f32))
+		self.attempt_get("wifescore proportion float", |j| {
+			etterna::Wifescore::from_proportion(j.as_f64()? as f32)
+		})
 	}
-	
+
 	fn wifescore_proportion_string(&self) -> Result<etterna::Wifescore, Error> {
-		self.attempt_get("wifescore proportion string", |j| etterna::Wifescore::from_proportion(j.as_str()?.parse().ok()?))
+		self.attempt_get("wifescore proportion string", |j| {
+			etterna::Wifescore::from_proportion(j.as_str()?.parse().ok()?)
+		})
 	}
 }
 
 impl JsonValueExt for serde_json::Value {
-	fn get(&self) -> &Self { self } // self intensifies
+	fn get(&self) -> &Self {
+		self
+	} // self intensifies
 }
