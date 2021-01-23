@@ -79,7 +79,7 @@ impl Session {
 		method: &str,
 		path: &str,
 		request_callback: impl Fn(ureq::Request) -> ureq::Response,
-	) -> Result<ureq::Response, Error> {
+	) -> Result<String, Error> {
 		// UNWRAP: propagate panics
 		crate::rate_limit(
 			&mut *self.last_request.lock().unwrap(),
@@ -90,7 +90,11 @@ impl Session {
 		if let Some(timeout) = self.timeout {
 			request.timeout(timeout);
 		}
-		let response = request_callback(request);
+		let response = request_callback(request).into_string()?;
+
+		if response.trim().is_empty() {
+			return Err(Error::EmptyServerResponse);
+		}
 
 		Ok(response)
 	}
@@ -99,14 +103,13 @@ impl Session {
 	pub fn packlist(&self, range_to_retrieve: impl EoRange) -> Result<Vec<PackEntry>, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self
-			.request("POST", "pack/packlist", |mut r| {
-				r.send_form(&[
-					("start", &start.to_string()),
-					("length", &length.to_string()),
-				])
-			})?
-			.into_json()?;
+		let json = self.request("POST", "pack/packlist", |mut r| {
+			r.send_form(&[
+				("start", &start.to_string()),
+				("length", &length.to_string()),
+			])
+		})?;
+		let json: serde_json::Value = serde_json::from_str(&json)?;
 
 		json["data"]
 			.array()?
@@ -146,14 +149,13 @@ impl Session {
 	) -> Result<Vec<LeaderboardEntry>, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self
-			.request("POST", "leaderboard/leaderboard", |mut r| {
-				r.send_form(&[
-					("start", &start.to_string()),
-					("length", &length.to_string()),
-				])
-			})?
-			.into_json()?;
+		let json = self.request("POST", "leaderboard/leaderboard", |mut r| {
+			r.send_form(&[
+				("start", &start.to_string()),
+				("length", &length.to_string()),
+			])
+		})?;
+		let json: serde_json::Value = serde_json::from_str(&json)?;
 
 		json["data"]
 			.array()?
@@ -208,51 +210,50 @@ impl Session {
 	) -> Result<UserScores, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self
-			.request(
-				"POST",
-				if include_invalid {
-					"score/userScores"
-				} else {
-					"valid_score/userScores"
-				},
-				|mut r| {
-					r.send_form(&[
-						("start", &start.to_string()),
-						("length", &length.to_string()),
-						("userid", &user_id.to_string()),
-						(
-							"order[0][dir]",
-							match sort_direction {
-								SortDirection::Ascending => "asc",
-								SortDirection::Descending => "desc",
-							},
-						),
-						(
-							"order[0][column]",
-							match sort_criterium {
-								UserScoresSortBy::SongName => "0",
-								UserScoresSortBy::Rate => "1",
-								UserScoresSortBy::SsrOverall => "2",
-								UserScoresSortBy::SsrOverallNerfed => "3",
-								UserScoresSortBy::Wifescore => "4",
-								UserScoresSortBy::Date => "5",
-								UserScoresSortBy::Stream => "6",
-								UserScoresSortBy::Jumpstream => "7",
-								UserScoresSortBy::Handstream => "8",
-								UserScoresSortBy::Stamina => "9",
-								UserScoresSortBy::Jacks => "10",
-								UserScoresSortBy::Chordjacks => "11",
-								UserScoresSortBy::Technical => "12",
-								UserScoresSortBy::ChordCohesion => "13",
-								UserScoresSortBy::Scorekey => "",
-							},
-						),
-						("search[value]", song_name_search_query.unwrap_or("")),
-					])
-				},
-			)?
-			.into_json()?;
+		let json = self.request(
+			"POST",
+			if include_invalid {
+				"score/userScores"
+			} else {
+				"valid_score/userScores"
+			},
+			|mut r| {
+				r.send_form(&[
+					("start", &start.to_string()),
+					("length", &length.to_string()),
+					("userid", &user_id.to_string()),
+					(
+						"order[0][dir]",
+						match sort_direction {
+							SortDirection::Ascending => "asc",
+							SortDirection::Descending => "desc",
+						},
+					),
+					(
+						"order[0][column]",
+						match sort_criterium {
+							UserScoresSortBy::SongName => "0",
+							UserScoresSortBy::Rate => "1",
+							UserScoresSortBy::SsrOverall => "2",
+							UserScoresSortBy::SsrOverallNerfed => "3",
+							UserScoresSortBy::Wifescore => "4",
+							UserScoresSortBy::Date => "5",
+							UserScoresSortBy::Stream => "6",
+							UserScoresSortBy::Jumpstream => "7",
+							UserScoresSortBy::Handstream => "8",
+							UserScoresSortBy::Stamina => "9",
+							UserScoresSortBy::Jacks => "10",
+							UserScoresSortBy::Chordjacks => "11",
+							UserScoresSortBy::Technical => "12",
+							UserScoresSortBy::ChordCohesion => "13",
+							UserScoresSortBy::Scorekey => "",
+						},
+					),
+					("search[value]", song_name_search_query.unwrap_or("")),
+				])
+			},
+		)?;
+		let json: serde_json::Value = serde_json::from_str(&json)?;
 
 		let scores = json["data"]
 			.array()?
@@ -342,7 +343,6 @@ impl Session {
 
 	pub fn user_details(&self, username: &str) -> Result<UserDetails, Error> {
 		let response = self.request("GET", &format!("user/{}", username), |mut r| r.call())?;
-		let response = response.into_string()?;
 
 		if response.contains("Looks like the page you want, aint here.")
 			|| response.contains("disallowed characters") // if username has funky chars
@@ -374,50 +374,49 @@ impl Session {
 	) -> Result<ChartLeaderboard, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self
-			.request(
-				"POST",
-				if include_invalid {
-					"score/chartOverallScores"
-				} else {
-					"valid_score/chartOverallScores"
-				},
-				|mut r| {
-					r.send_form(&[
-						("start", &start.to_string()),
-						("length", &length.to_string()),
-						("chartkey", chartkey.as_ref()),
-						("top", if all_rates { "" } else { "true" }),
-						(
-							"order[0][dir]",
-							match sort_direction {
-								SortDirection::Ascending => "asc",
-								SortDirection::Descending => "desc",
-							},
-						),
-						(
-							"order[0][column]",
-							match sort_criterium {
-								ChartLeaderboardSortBy::Username => "1",
-								ChartLeaderboardSortBy::SsrOverall => "2",
-								ChartLeaderboardSortBy::Rate => "4",
-								ChartLeaderboardSortBy::Wife => "5",
-								ChartLeaderboardSortBy::Date => "6",
-								ChartLeaderboardSortBy::Marvelouses => "7",
-								ChartLeaderboardSortBy::Perfects => "8",
-								ChartLeaderboardSortBy::Greats => "9",
-								ChartLeaderboardSortBy::Goods => "10",
-								ChartLeaderboardSortBy::Bads => "11",
-								ChartLeaderboardSortBy::Misses => "12",
-								ChartLeaderboardSortBy::MaxCombo => "13",
-								ChartLeaderboardSortBy::Scorekey => "",
-							},
-						),
-						("search[value]", user_name_search_query.unwrap_or("")),
-					])
-				},
-			)?
-			.into_json()?;
+		let json = self.request(
+			"POST",
+			if include_invalid {
+				"score/chartOverallScores"
+			} else {
+				"valid_score/chartOverallScores"
+			},
+			|mut r| {
+				r.send_form(&[
+					("start", &start.to_string()),
+					("length", &length.to_string()),
+					("chartkey", chartkey.as_ref()),
+					("top", if all_rates { "" } else { "true" }),
+					(
+						"order[0][dir]",
+						match sort_direction {
+							SortDirection::Ascending => "asc",
+							SortDirection::Descending => "desc",
+						},
+					),
+					(
+						"order[0][column]",
+						match sort_criterium {
+							ChartLeaderboardSortBy::Username => "1",
+							ChartLeaderboardSortBy::SsrOverall => "2",
+							ChartLeaderboardSortBy::Rate => "4",
+							ChartLeaderboardSortBy::Wife => "5",
+							ChartLeaderboardSortBy::Date => "6",
+							ChartLeaderboardSortBy::Marvelouses => "7",
+							ChartLeaderboardSortBy::Perfects => "8",
+							ChartLeaderboardSortBy::Greats => "9",
+							ChartLeaderboardSortBy::Goods => "10",
+							ChartLeaderboardSortBy::Bads => "11",
+							ChartLeaderboardSortBy::Misses => "12",
+							ChartLeaderboardSortBy::MaxCombo => "13",
+							ChartLeaderboardSortBy::Scorekey => "",
+						},
+					),
+					("search[value]", user_name_search_query.unwrap_or("")),
+				])
+			},
+		)?;
+		let json: serde_json::Value = serde_json::from_str(&json)?;
 
 		Ok(ChartLeaderboard {
 			entries_before_search_filtering: json["recordsTotal"].u32_()?,
