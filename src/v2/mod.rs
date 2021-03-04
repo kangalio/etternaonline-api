@@ -634,7 +634,7 @@ impl Session {
 	/// println!(
 	/// 	"The best German Etterna player is {} with a rating of {}",
 	/// 	leaderboard[0].user.username,
-	/// 	leaderboard[0].rating.overall(),
+	/// 	leaderboard[0].rating.overall,
 	/// );
 	/// # Ok(()) }
 	/// ```
@@ -678,7 +678,7 @@ impl Session {
 	/// println!(
 	/// 	"The world's best Etterna player is {} with a rating of {}",
 	/// 	leaderboard[0].user.username,
-	/// 	leaderboard[0].rating.overall(),
+	/// 	leaderboard[0].rating.overall,
 	/// );
 	/// # Ok(()) }
 	/// ```
