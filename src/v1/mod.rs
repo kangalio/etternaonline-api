@@ -50,6 +50,7 @@ pub struct Session {
 	cooldown: std::time::Duration,
 	timeout: Option<std::time::Duration>,
 	last_request: std::sync::Mutex<std::time::Instant>,
+	http: reqwest::Client,
 }
 
 impl Session {
@@ -63,24 +64,29 @@ impl Session {
 			cooldown,
 			timeout,
 			last_request: std::sync::Mutex::new(std::time::Instant::now() - cooldown),
+			http: reqwest::Client::new(),
 		}
 	}
 
-	fn request(&self, path: &str, parameters: &[(&str, &str)]) -> Result<serde_json::Value, Error> {
+	async fn request(
+		&self,
+		path: &str,
+		parameters: &[(&str, &str)],
+	) -> Result<serde_json::Value, Error> {
 		// UNWRAP: propagate panics
-		crate::rate_limit(&mut *self.last_request.lock().unwrap(), self.cooldown);
+		let rate_limit = crate::rate_limit(self.last_request.lock().unwrap(), self.cooldown);
+		rate_limit.await;
 
-		let mut request = ureq::get(&format!("https://api.etternaonline.com/v1/{}", path));
-		for (param, value) in parameters {
-			request.query(param, value);
-		}
-		request.query("api_key", &self.api_key);
+		let mut request = self
+			.http
+			.get(&format!("https://api.etternaonline.com/v1/{}", path))
+			.query(parameters)
+			.query(&[("api_key", &self.api_key)]);
 		if let Some(timeout) = self.timeout {
-			request.timeout(timeout);
+			request = request.timeout(timeout);
 		}
 
-		let response = request.call().into_string()?;
-		let json: serde_json::Value = serde_json::from_str(&response)?;
+		let json: serde_json::Value = request.send().await?.json().await?;
 
 		if let Some(error) = json["error"].as_str() {
 			return Err(match error {
@@ -113,8 +119,10 @@ impl Session {
 	/// assert_eq!(song.name, "Game Time");
 	/// # Ok(()) }
 	/// ```
-	pub fn song_data(&self, song_id: u32) -> Result<SongData, Error> {
-		let json = self.request("song", &[("key", song_id.to_string().as_str())])?;
+	pub async fn song_data(&self, song_id: u32) -> Result<SongData, Error> {
+		let json = self
+			.request("song", &[("key", song_id.to_string().as_str())])
+			.await?;
 		let json = json.singular_array_item()?;
 
 		if json["songkey"].is_null() {
@@ -177,8 +185,8 @@ impl Session {
 	/// assert_eq!(client_version, "0.70.1"); // As of 2020-07-25
 	/// # Ok(()) }
 	/// ```
-	pub fn client_version(&self) -> Result<String, Error> {
-		Ok(self.request("clientVersion", &[])?["version"].string()?)
+	pub async fn client_version(&self) -> Result<String, Error> {
+		Ok(self.request("clientVersion", &[]).await?["version"].string()?)
 	}
 
 	/// Retrieve the link where you can register for an EO account
@@ -193,8 +201,8 @@ impl Session {
 	/// assert_eq!(register_link, "https://etternaonline.com/user/register/"); // As of 2020-07-25
 	/// # Ok(()) }
 	/// ```
-	pub fn register_link(&self) -> Result<String, Error> {
-		Ok(self.request("registerLink", &[])?["link"].string()?)
+	pub async fn register_link(&self) -> Result<String, Error> {
+		Ok(self.request("registerLink", &[]).await?["link"].string()?)
 	}
 
 	/// Retrieves a list of all packs tracked on EO
@@ -212,8 +220,8 @@ impl Session {
 	/// assert_eq!(pack_list[1].name, "'d");
 	/// # Ok(()) }
 	/// ```
-	pub fn pack_list(&self) -> Result<Vec<PackEntry>, Error> {
-		let json = self.request("pack_list", &[])?;
+	pub async fn pack_list(&self) -> Result<Vec<PackEntry>, Error> {
+		let json = self.request("pack_list", &[]).await?;
 		json.array()?
 			.iter()
 			.map(|json| {
@@ -246,11 +254,13 @@ impl Session {
 	/// assert_eq!(leaderboard[0].user.username, "kangalioo"); // As of 2020-07-25
 	/// # Ok(()) }
 	/// ```
-	pub fn chart_leaderboard(
+	pub async fn chart_leaderboard(
 		&self,
 		chartkey: impl AsRef<str>,
 	) -> Result<Vec<ChartLeaderboardEntry>, Error> {
-		let json = self.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])?;
+		let json = self
+			.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])
+			.await?;
 		json.array()?
 			.iter()
 			.map(|json| {
@@ -302,8 +312,10 @@ impl Session {
 	/// println!("Last played song was {}", latest_scores[0].song_name);
 	/// # Ok(()) }
 	/// ```
-	pub fn user_latest_10_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
-		let json = self.request("last_user_session", &[("username", username)])?;
+	pub async fn user_latest_10_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
+		let json = self
+			.request("last_user_session", &[("username", username)])
+			.await?;
 
 		json.array()?
 			.iter()
@@ -335,8 +347,8 @@ impl Session {
 	/// assert_eq!(me.is_moderator, false);
 	/// # Ok(()) }
 	/// ```
-	pub fn user_data(&self, username: &str) -> Result<UserData, Error> {
-		let json = self.request("user_data", &[("username", username)])?;
+	pub async fn user_data(&self, username: &str) -> Result<UserData, Error> {
+		let json = self.request("user_data", &[("username", username)]).await?;
 
 		Ok(UserData {
 			user_name: json["username"].string()?,     // "kangalioo"
@@ -372,8 +384,8 @@ impl Session {
 	/// assert!(ranks.handstream < ranks.jackspeed);
 	/// # Ok(()) }
 	/// ```
-	pub fn user_ranks(&self, username: &str) -> Result<etterna::UserRank, Error> {
-		let json = self.request("user_rank", &[("username", username)])?;
+	pub async fn user_ranks(&self, username: &str) -> Result<etterna::UserRank, Error> {
+		let json = self.request("user_rank", &[("username", username)]).await?;
 
 		let user_rank = etterna::UserRank {
 			overall: json["Overall"].parse()?,
@@ -426,26 +438,28 @@ impl Session {
 	/// assert_eq!(&top_jumpstream_scores[0].song_name, "Everytime I hear Your Name");
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_scores(
+	pub async fn user_top_scores(
 		&self,
 		username: &str,
 		skillset: etterna::Skillset8,
 		number: u32,
 	) -> Result<Vec<TopScore>, Error> {
-		let json = self.request(
-			"user_top_scores",
-			&[
-				("username", username),
-				(
-					"ss",
-					skillset
-						.into_skillset7()
-						.map(crate::common::skillset_to_eo)
-						.unwrap_or(""),
-				),
-				("num", &number.to_string()),
-			],
-		)?;
+		let json = self
+			.request(
+				"user_top_scores",
+				&[
+					("username", username),
+					(
+						"ss",
+						skillset
+							.into_skillset7()
+							.map(crate::common::skillset_to_eo)
+							.unwrap_or(""),
+					),
+					("num", &number.to_string()),
+				],
+			)
+			.await?;
 
 		json.array()?
 			.iter()
@@ -463,8 +477,11 @@ impl Session {
 			.collect()
 	}
 
-	fn generic_leaderboard(&self, params: &[(&str, &str)]) -> Result<Vec<LeaderboardEntry>, Error> {
-		let json = self.request("leaderboard", params)?;
+	async fn generic_leaderboard(
+		&self,
+		params: &[(&str, &str)],
+	) -> Result<Vec<LeaderboardEntry>, Error> {
+		let json = self.request("leaderboard", params).await?;
 
 		json.array()?
 			.iter()
@@ -499,8 +516,11 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn country_leaderboard(&self, country_code: &str) -> Result<Vec<LeaderboardEntry>, Error> {
-		self.generic_leaderboard(&[("cc", country_code)])
+	pub async fn country_leaderboard(
+		&self,
+		country_code: &str,
+	) -> Result<Vec<LeaderboardEntry>, Error> {
+		self.generic_leaderboard(&[("cc", country_code)]).await
 	}
 
 	/// Retrieves the top 10 players worldwide
@@ -520,8 +540,8 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn global_leaderboard(&self) -> Result<Vec<LeaderboardEntry>, Error> {
-		self.generic_leaderboard(&[])
+	pub async fn global_leaderboard(&self) -> Result<Vec<LeaderboardEntry>, Error> {
+		self.generic_leaderboard(&[]).await
 	}
 
 	/// Retrieves detailed metadata and the replay data about the score with the given scorekey.
@@ -540,8 +560,8 @@ impl Session {
 	/// assert_eq!(score_info.max_combo, 1026);
 	/// # Ok(()) }
 	/// ```
-	pub fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
-		let json = self.request("score", &[("key", scorekey.as_ref())])?;
+	pub async fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
+		let json = self.request("score", &[("key", scorekey.as_ref())]).await?;
 		let json = json.singular_array_item()?;
 
 		Ok(ScoreData {

@@ -6,8 +6,8 @@ use etterna::*;
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct PackEntry {
 	pub name: String,
@@ -23,8 +23,8 @@ pub struct PackEntry {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct LeaderboardEntry {
 	pub rank: u32,
@@ -37,8 +37,8 @@ pub struct LeaderboardEntry {
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct Country {
 	pub code: String,
@@ -57,8 +57,8 @@ pub struct UserScores {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct UserScore {
 	pub song_name: String,
@@ -76,8 +76,8 @@ pub struct UserScore {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 // The part of a [`UserScore`] that is only present if the score is valid
 pub struct ValidUserScoreInfo {
@@ -107,21 +107,23 @@ impl ValidUserScoreInfo {
 	}
 }
 
-// I should, like, add more things to this...
+// TODO: I should, like, add more things to this...
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct UserDetails {
 	pub user_id: u32,
+	// pub total_scores: u32,
+	// pub unique_songs: u32,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub enum UserScoresSortBy {
 	SongName,
@@ -144,8 +146,8 @@ pub enum UserScoresSortBy {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub enum SortDirection {
 	Descending,
@@ -155,8 +157,8 @@ pub enum SortDirection {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct ChartLeaderboard {
 	/// Number of scores matching selected criteria except search query
@@ -170,8 +172,8 @@ pub struct ChartLeaderboard {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct ChartLeaderboardEntry {
 	pub username: String,
@@ -199,8 +201,8 @@ impl ChartLeaderboardEntry {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub enum ChartLeaderboardSortBy {
 	Username,

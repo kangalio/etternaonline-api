@@ -14,8 +14,8 @@ use etterna::prelude::*;
 #[derive(Debug, PartialEq, Clone, Default)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct Replay {
 	pub notes: Vec<ReplayNote>,
@@ -115,8 +115,8 @@ impl etterna::SimpleReplay for Replay {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct ReplayNote {
 	/// The position of the note inside the chart, in seconds. **Note: EO returns slightly incorrect
@@ -137,8 +137,8 @@ pub struct ReplayNote {
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Default)]
 #[cfg_attr(
 	feature = "serde",
-	serde(crate = "serde_"),
-	derive(serde::Serialize, serde::Deserialize)
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
 )]
 pub struct FileSize {
 	bytes: u64,

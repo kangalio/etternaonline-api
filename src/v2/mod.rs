@@ -6,6 +6,8 @@ use etterna::*;
 use crate::extension_traits::*;
 use crate::Error;
 
+type BoxFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
+
 fn difficulty_from_eo(string: &str) -> Result<etterna::Difficulty, Error> {
 	Ok(match string {
 		"Beginner" => Difficulty::Beginner,
@@ -76,12 +78,13 @@ pub struct Session {
 	client_data: String,
 
 	// The auth key that we get from the server on login
-	authorization: crate::common::AuthorizationManager<Option<String>>,
+	authorization: std::sync::Mutex<Option<String>>,
 
 	// Rate limiting stuff
 	last_request: std::sync::Mutex<std::time::Instant>,
 	cooldown: std::time::Duration,
 
+	http: reqwest::Client,
 	timeout: Option<std::time::Duration>,
 }
 
@@ -108,7 +111,7 @@ impl Session {
 	/// println!("Details about kangalioo: {:?}", session.user_details("kangalioo"));
 	/// # Ok(()) }
 	/// ```
-	pub fn new_from_login(
+	pub async fn new_from_login(
 		username: String,
 		password: String,
 		client_data: String,
@@ -121,10 +124,11 @@ impl Session {
 			client_data,
 			cooldown,
 			timeout,
-			authorization: crate::common::AuthorizationManager::new(None),
+			authorization: std::sync::Mutex::new(None),
 			last_request: std::sync::Mutex::new(std::time::Instant::now() - cooldown),
+			http: reqwest::Client::new(),
 		};
-		session.login()?;
+		session.login().await?;
 
 		Ok(session)
 	}
@@ -134,134 +138,126 @@ impl Session {
 	// return Unauthorized, and then my client will try to login to get a fresh token, and the
 	// process repeats indefinitely...? I just hope that the EO server never throws an Unauthorized
 	// on login
-	fn login(&self) -> Result<(), Error> {
-		self.authorization.refresh(|| {
-			let form: &[(&str, &str)] = &[
-				// eh fuck it. I dont wanna bother with those lifetime headaches
-				// who needs allocation efficiency anyways
-				("username", &self.username.clone()),
-				("password", &self.password.clone()),
-				("clientData", &self.client_data.clone()),
-			];
+	async fn login(&self) -> Result<(), Error> {
+		let form: &[(&str, &str)] = &[
+			// eh fuck it. I dont wanna bother with those lifetime headaches
+			// who needs allocation efficiency anyways
+			("username", &self.username.clone()),
+			("password", &self.password.clone()),
+			("clientData", &self.client_data.clone()),
+		];
 
-			let json = self.generic_request(
-				"POST",
+		let json = self
+			.generic_request(
+				reqwest::Method::POST,
 				"login",
-				|mut request| request.send_form(form),
+				|request| request.form(form),
 				false,
-			)?;
+			)
+			.await?;
 
-			Ok(Some(format!(
-				"Bearer {}",
-				json["attributes"]["accessToken"].str_()?,
-			)))
-		})
+		*self.authorization.lock().unwrap() = Some(format!(
+			"Bearer {}",
+			json["attributes"]["accessToken"].str_()?,
+		));
+
+		Ok(())
 	}
 
 	// If `do_authorization` is set, the authorization field will be locked immutably! So if the
 	// caller has a mutable lock active when calling generic_request, DONT PASS true FOR
 	// do_authorization, or we'll deadlock!
-	fn generic_request(
-		&self,
-		method: &str,
-		path: &str,
-		request_callback: impl Fn(ureq::Request) -> ureq::Response,
+	fn generic_request<'a>(
+		&'a self,
+		method: reqwest::Method,
+		path: &'a str,
+		request_callback: impl Fn(reqwest::RequestBuilder) -> reqwest::RequestBuilder + Send + Sync + 'a,
 		do_authorization: bool,
-	) -> Result<serde_json::Value, Error> {
-		// UNWRAP: propagate panics
-		crate::rate_limit(&mut *self.last_request.lock().unwrap(), self.cooldown);
+	) -> BoxFuture<'a, Result<serde_json::Value, Error>> {
+		Box::pin(async move {
+			// UNWRAP: propagate panics
+			let rate_limit = crate::rate_limit(self.last_request.lock().unwrap(), self.cooldown);
+			rate_limit.await;
 
-		let mut request = ureq::request(
-			method,
-			&format!("https://api.etternaonline.com/v2/{}", path),
-		);
-		if let Some(timeout) = self.timeout {
-			request.timeout(timeout);
-		}
-		if do_authorization {
-			let auth = self
-				.authorization
-				.get_authorization()
-				.as_ref()
-				.expect("No authorization set even though it was requested??")
-				.clone();
-			request.set("Authorization", &auth);
-		}
-
-		let response = request_callback(request);
-
-		if let Some(ureq::Error::Io(io_err)) = response.synthetic_error() {
-			if io_err.kind() == std::io::ErrorKind::TimedOut {
-				return Err(Error::Timeout);
+			let mut request = self.http.request(
+				method.clone(),
+				&format!("https://api.etternaonline.com/v2/{}", path),
+			);
+			if let Some(timeout) = self.timeout {
+				request = request.timeout(timeout);
 			}
-		}
+			if do_authorization {
+				let auth = self
+					.authorization
+					.lock()
+					.unwrap()
+					.as_ref()
+					.expect("No authorization set even though it was requested??")
+					.clone();
+				request = request.header("Authorization", &auth);
+			}
+			request = request_callback(request);
 
-		let status = response.status();
-		let response = match response.into_string() {
-			Ok(response) => response,
-			Err(e) => {
-				return if e.to_string().contains("timed out reading response") {
-					// yes, there are two places where timeouts can happen :p
-					// see https://github.com/algesten/ureq/issues/119
-					Err(Error::Timeout)
-				} else {
-					Err(e.into())
+			let response = request.send().await?;
+			let status = response.status();
+			let response = response.text().await?;
+
+			if status.is_server_error() {
+				return Err(Error::InternalServerError {
+					status_code: status.as_u16(),
+				});
+			}
+
+			if response.is_empty() {
+				return Err(Error::EmptyServerResponse);
+			}
+
+			// only parse json if the response code is not 5xx because on 5xx response codes, the server
+			// sometimes sends empty responses
+			let mut json: serde_json::Value = serde_json::from_str(&response)?;
+
+			// Error handling
+			if status.is_client_error() {
+				return match json["errors"][0]["title"].str_()? {
+					"Unauthorized" => {
+						// Token expired, let's login again and retry
+						self.login().await?;
+						return self
+							.generic_request(method, path, request_callback, do_authorization)
+							.await;
+					}
+					"Score not found" => Err(Error::ScoreNotFound),
+					"Chart not tracked" => Err(Error::ChartNotTracked),
+					"User not found" => Err(Error::UserNotFound),
+					"Favorite already exists" => Err(Error::ChartAlreadyFavorited),
+					"Database error" => Err(Error::DatabaseError),
+					"Goal already exist" => Err(Error::GoalAlreadyExists),
+					"Chart already exists" => Err(Error::ChartAlreadyAdded),
+					"Malformed XML file" => Err(Error::InvalidXml),
+					"No users found" => Err(Error::NoUsersFound),
+					other => Err(Error::UnknownApiError(other.to_owned())),
 				};
+			} else if status != 200 {
+				// TODO: should we have print calls in a library?
+				println!("Warning: status code {}", status);
 			}
-		};
 
-		if status >= 500 {
-			return Err(Error::ServerIsDown {
-				status_code: status,
-			});
-		}
-
-		if response.is_empty() {
-			return Err(Error::EmptyServerResponse);
-		}
-
-		// only parse json if the response code is not 5xx because on 5xx response codes, the server
-		// sometimes sends empty responses
-		let mut json: serde_json::Value = serde_json::from_str(&response)?;
-
-		// Error handling
-		if status >= 400 {
-			return match json["errors"][0]["title"].str_()? {
-				"Unauthorized" => {
-					// Token expired, let's login again and retry
-					self.login()?;
-					return self.generic_request(method, path, request_callback, do_authorization);
-				}
-				"Score not found" => Err(Error::ScoreNotFound),
-				"Chart not tracked" => Err(Error::ChartNotTracked),
-				"User not found" => Err(Error::UserNotFound),
-				"Favorite already exists" => Err(Error::ChartAlreadyFavorited),
-				"Database error" => Err(Error::DatabaseError),
-				"Goal already exist" => Err(Error::GoalAlreadyExists),
-				"Chart already exists" => Err(Error::ChartAlreadyAdded),
-				"Malformed XML file" => Err(Error::InvalidXml),
-				"No users found" => Err(Error::NoUsersFound),
-				other => Err(Error::UnknownApiError(other.to_owned())),
-			};
-		} else if status != 200 {
-			// TODO: should we have print calls in a library?
-			println!("Warning: status code {}", status);
-		}
-
-		Ok(json["data"].take())
+			Ok(json["data"].take())
+		})
 	}
 
-	fn request(
+	async fn request(
 		&self,
-		method: &str,
+		method: reqwest::Method,
 		path: &str,
-		request_callback: impl Fn(ureq::Request) -> ureq::Response,
+		request_callback: impl Fn(reqwest::RequestBuilder) -> reqwest::RequestBuilder + Send + Sync,
 	) -> Result<serde_json::Value, Error> {
 		self.generic_request(method, path, request_callback, true)
+			.await
 	}
 
-	fn get(&self, path: &str) -> Result<serde_json::Value, Error> {
-		self.request("GET", path, |mut request| request.call())
+	async fn get(&self, path: &str) -> Result<serde_json::Value, Error> {
+		self.request(reqwest::Method::GET, path, |x| x).await
 	}
 
 	/// Retrieves details about the profile of the specified user.
@@ -280,8 +276,8 @@ impl Session {
 	/// let details = session.user_details("kangalioo")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_details(&self, username: &str) -> Result<UserDetails, Error> {
-		let json = self.get(&format!("user/{}", username))?;
+	pub async fn user_details(&self, username: &str) -> Result<UserDetails, Error> {
+		let json = self.get(&format!("user/{}", username)).await?;
 		let json = &json["attributes"];
 
 		Ok(UserDetails {
@@ -309,8 +305,8 @@ impl Session {
 		})
 	}
 
-	fn parse_top_scores(&self, url: &str) -> Result<Vec<TopScore>, Error> {
-		let json = self.get(url)?;
+	async fn parse_top_scores(&self, url: &str) -> Result<Vec<TopScore>, Error> {
+		let json = self.get(url).await?;
 
 		json.array()?
 			.iter()
@@ -354,7 +350,7 @@ impl Session {
 	/// let scores = session.user_top_skillset_scores("kangalioo", Skillset7::Chordjack, 10)?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_skillset_scores(
+	pub async fn user_top_skillset_scores(
 		&self,
 		username: &str,
 		skillset: etterna::Skillset7,
@@ -366,6 +362,7 @@ impl Session {
 			crate::common::skillset_to_eo(skillset),
 			limit
 		))
+		.await
 	}
 
 	/// Retrieve the user's top 10 scores, sorted by the overall SSR. Due to a bug in the EO v2 API,
@@ -383,8 +380,9 @@ impl Session {
 	/// let scores = session.user_top_10_scores("kangalioo")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_10_scores(&self, username: &str) -> Result<Vec<TopScore>, Error> {
+	pub async fn user_top_10_scores(&self, username: &str) -> Result<Vec<TopScore>, Error> {
 		self.parse_top_scores(&format!("user/{}/top//", username))
+			.await
 	}
 
 	/// Retrieve the user's latest 10 scores.
@@ -401,8 +399,8 @@ impl Session {
 	/// let scores = session.user_latest_scores("kangalioo")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_latest_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
-		let json = self.get(&format!("user/{}/latest", username))?;
+	pub async fn user_latest_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
+		let json = self.get(&format!("user/{}/latest", username)).await?;
 
 		json.array()?
 			.iter()
@@ -433,8 +431,11 @@ impl Session {
 	/// let scores = session.user_ranks_per_skillset("kangalioo")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn user_ranks_per_skillset(&self, username: &str) -> Result<etterna::UserRank, Error> {
-		let json = self.get(&format!("user/{}/ranks", username))?;
+	pub async fn user_ranks_per_skillset(
+		&self,
+		username: &str,
+	) -> Result<etterna::UserRank, Error> {
+		let json = self.get(&format!("user/{}/ranks", username)).await?;
 		let json = &json["attributes"];
 
 		Ok(etterna::UserRank {
@@ -464,11 +465,11 @@ impl Session {
 	/// println!("kangalioo's 5th best handstream score is {:?}", top_scores.handstream[4]);
 	/// # Ok(()) }
 	/// ```
-	pub fn user_top_scores_per_skillset(
+	pub async fn user_top_scores_per_skillset(
 		&self,
 		username: &str,
 	) -> Result<UserTopScoresPerSkillset, Error> {
-		let json = self.get(&format!("user/{}/all", username))?;
+		let json = self.get(&format!("user/{}/all", username)).await?;
 
 		let parse_skillset_top_scores = |array: &serde_json::Value| -> Result<Vec<_>, Error> {
 			array
@@ -524,8 +525,8 @@ impl Session {
 	/// let score_info = session.score_data("S65565b5bc377c6d78b60c0aecfd9e05955b4cf63")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
-		let json = self.get(&format!("score/{}", scorekey.as_ref()))?;
+	pub async fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
+		let json = self.get(&format!("score/{}", scorekey.as_ref())).await?;
 
 		let scorekey = json["id"].parse()?;
 		let json = &json["attributes"];
@@ -578,11 +579,13 @@ impl Session {
 	/// println!("The best Game Time score is being held by {}", leaderboard[0].user.username);
 	/// # Ok(()) }
 	/// ```
-	pub fn chart_leaderboard(
+	pub async fn chart_leaderboard(
 		&self,
 		chartkey: impl AsRef<str>,
 	) -> Result<Vec<ChartLeaderboardScore>, Error> {
-		let json = self.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))?;
+		let json = self
+			.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))
+			.await?;
 
 		json.array()?
 			.iter()
@@ -638,8 +641,11 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn country_leaderboard(&self, country_code: &str) -> Result<Vec<LeaderboardEntry>, Error> {
-		let json = self.get(&format!("leaderboard/{}", country_code))?;
+	pub async fn country_leaderboard(
+		&self,
+		country_code: &str,
+	) -> Result<Vec<LeaderboardEntry>, Error> {
+		let json = self.get(&format!("leaderboard/{}", country_code)).await?;
 
 		json.array()?
 			.iter()
@@ -682,8 +688,8 @@ impl Session {
 	/// );
 	/// # Ok(()) }
 	/// ```
-	pub fn world_leaderboard(&self) -> Result<Vec<LeaderboardEntry>, Error> {
-		self.country_leaderboard("")
+	pub async fn world_leaderboard(&self) -> Result<Vec<LeaderboardEntry>, Error> {
+		self.country_leaderboard("").await
 	}
 
 	/// Retrieves the user's favorites. Returns a vector of chartkeys.
@@ -700,8 +706,8 @@ impl Session {
 	/// println!("kangalioo has {} favorites", favorites.len());
 	/// # Ok(()) }
 	/// ```
-	pub fn user_favorites(&self, username: &str) -> Result<Vec<String>, Error> {
-		let json = self.get(&format!("user/{}/favorites", username))?;
+	pub async fn user_favorites(&self, username: &str) -> Result<Vec<String>, Error> {
+		let json = self.get(&format!("user/{}/favorites", username)).await?;
 
 		json.array()?
 			.iter()
@@ -724,16 +730,18 @@ impl Session {
 	/// session.add_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn add_user_favorite(
+	pub async fn add_user_favorite(
 		&self,
 		username: &str,
 		chartkey: impl AsRef<str>,
 	) -> Result<(), Error> {
+		let chartkey = chartkey.as_ref();
 		self.request(
-			"POST",
+			reqwest::Method::POST,
 			&format!("user/{}/favorites", username),
-			|mut req| req.send_form(&[("chartkey", chartkey.as_ref())]),
-		)?;
+			|req| req.form(&[("chartkey", chartkey)]),
+		)
+		.await?;
 
 		Ok(())
 	}
@@ -749,16 +757,17 @@ impl Session {
 	/// session.remove_user_favorite("kangalioo", "X4a15f62b66a80b62ec64521704f98c6c03d98e03")?;
 	/// # Ok(()) }
 	/// ```
-	pub fn remove_user_favorite(
+	pub async fn remove_user_favorite(
 		&self,
 		username: &str,
 		chartkey: impl AsRef<str>,
 	) -> Result<(), Error> {
 		self.request(
-			"DELETE",
+			reqwest::Method::DELETE,
 			&format!("user/{}/favorites/{}", username, chartkey.as_ref()),
-			|mut request| request.call(),
-		)?;
+			|x| x,
+		)
+		.await?;
 
 		Ok(())
 	}
@@ -779,8 +788,8 @@ impl Session {
 	/// println!("theropfather has {} goals", score_goals.len());
 	/// # Ok(()) }
 	/// ```
-	pub fn user_goals(&self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
-		let json = self.get(&format!("user/{}/goals", username))?;
+	pub async fn user_goals(&self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
+		let json = self.get(&format!("user/{}/goals", username)).await?;
 
 		json.array()?
 			.iter()
@@ -823,7 +832,7 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	// TODO: somehow enforce that `time_assigned` is valid ISO 8601
-	pub fn add_user_goal(
+	pub async fn add_user_goal(
 		&self,
 		username: &str,
 		chartkey: impl AsRef<str>,
@@ -831,18 +840,20 @@ impl Session {
 		wifescore: f64,
 		time_assigned: &str,
 	) -> Result<(), Error> {
+		let chartkey = chartkey.as_ref();
 		self.request(
-			"POST",
+			reqwest::Method::POST,
 			&format!("user/{}/goals", username),
-			|mut request| {
-				request.send_form(&[
-					("chartkey", chartkey.as_ref()),
+			|request| {
+				request.form(&[
+					("chartkey", chartkey),
 					("rate", &format!("{}", rate)),
 					("wife", &format!("{}", wifescore)),
 					("timeAssigned", time_assigned),
 				])
 			},
-		)?;
+		)
+		.await?;
 
 		Ok(())
 	}
@@ -868,7 +879,7 @@ impl Session {
 	/// )?;
 	/// # Ok(()) }
 	/// ```
-	pub fn remove_user_goal(
+	pub async fn remove_user_goal(
 		&self,
 		username: &str,
 		chartkey: impl AsRef<str>,
@@ -876,7 +887,7 @@ impl Session {
 		wifescore: Wifescore,
 	) -> Result<(), Error> {
 		self.request(
-			"DELETE",
+			reqwest::Method::DELETE,
 			&format!(
 				"user/{}/goals/{}/{}/{}",
 				username,
@@ -884,8 +895,9 @@ impl Session {
 				wifescore.as_proportion(),
 				rate.as_f32()
 			),
-			|mut request| request.call(),
-		)?;
+			|x| x,
+		)
+		.await?;
 
 		Ok(())
 	}
@@ -908,12 +920,12 @@ impl Session {
 	/// session.update_user_goal("kangalioo", score_goal)?;
 	/// # Ok(()) }
 	/// ```
-	pub fn update_user_goal(&self, username: &str, goal: &ScoreGoal) -> Result<(), Error> {
+	pub async fn update_user_goal(&self, username: &str, goal: &ScoreGoal) -> Result<(), Error> {
 		self.request(
-			"POST",
+			reqwest::Method::POST,
 			&format!("user/{}/goals/update", username),
-			|mut request| {
-				request.send_form(&[
+			|request| {
+				request.form(&[
 					("chartkey", goal.chartkey.as_ref()),
 					("timeAssigned", &goal.time_assigned),
 					(
@@ -934,7 +946,8 @@ impl Session {
 					),
 				])
 			},
-		)?;
+		)
+		.await?;
 
 		Ok(())
 	}

@@ -3,7 +3,8 @@
 	clippy::tabs_in_doc_comments,
 	clippy::collapsible_if,
 	clippy::needless_bool,
-	clippy::too_many_arguments
+	clippy::too_many_arguments,
+	clippy::needless_question_mark, // thats just what we gotta do for lack of try blocks
 )]
 
 /*!
@@ -33,11 +34,37 @@ pub mod v1;
 pub mod v2;
 pub mod web;
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! assert_send_future {
+	($fn_result:expr) => {
+		fn _assert_send_future() {
+			fn a<T: Send>(_: T) {}
+			#[allow(warnings, clippy::all)]
+			a($fn_result);
+		}
+	};
+}
+
+/// Ensures that compilation fails if common functions return non-Send futures
+///
+/// Rust doesn't have a way to enforce async function futures implementing Send so we need this hack
+fn _assert_send_future() {
+	fn dummy<T>() -> T {
+		panic!()
+	}
+	fn assert_send<T: Send>(_: T) {}
+
+	assert_send(v1::Session::user_data(dummy(), dummy()));
+	assert_send(v2::Session::user_details(dummy(), dummy()));
+	assert_send(web::Session::user_details(dummy(), dummy()));
+}
+
 thiserror_lite::err_enum! {
 	#[derive(Debug)]
 	#[non_exhaustive]
 	pub enum Error {
-		// Normal errors
+		// Client errors
 		#[error("User not found")]
 		UserNotFound,
 		#[error("Username and password combination not found")]
@@ -61,41 +88,35 @@ thiserror_lite::err_enum! {
 		#[error("No users registered")]
 		NoUsersFound,
 
-		// Meta errors
-		#[error("General network error ({0})")]
-		NetworkError(String),
-		#[error("Internal web server error (HTTP {status_code})")]
-		ServerIsDown { status_code: u16 },
+		// External errors
+		#[error("HTTP error: {0}")]
+		Http(#[from] reqwest::Error),
+		#[error("General network error: {0}")]
+		NetworkError(#[from] std::io::Error),
+		#[error("Internal EtternaOnline server error (HTTP {status_code})")]
+		InternalServerError { status_code: u16 },
 		#[error("Error while parsing the json sent by the server ({0})")]
 		InvalidJson(#[from] serde_json::Error),
 		#[error("Sever responded to query with an unrecognized error message ({0})")]
 		UnknownApiError(String),
 		#[error("Server sent a payload that doesn't match expectations (debug: {0:?})")]
 		InvalidDataStructure(String),
-		#[error("Server timed out")]
-		Timeout,
 		#[error("Server response was empty")]
 		EmptyServerResponse
 	}
 }
 
-impl From<std::io::Error> for Error {
-	fn from(e: std::io::Error) -> Self {
-		if e.kind() == std::io::ErrorKind::TimedOut {
-			Self::Timeout
-		} else {
-			Self::NetworkError(e.to_string())
-		}
-	}
-}
+fn rate_limit(
+	mut last_request: std::sync::MutexGuard<'_, std::time::Instant>,
+	request_cooldown: std::time::Duration,
+) -> impl std::future::Future<Output = ()> + Send + Sync {
+	let earliest_allowed_next_request = *last_request + request_cooldown;
+	let wake_up_time = Ord::max(std::time::Instant::now(), earliest_allowed_next_request);
 
-fn rate_limit(last_request: &mut std::time::Instant, request_cooldown: std::time::Duration) {
-	let now = std::time::Instant::now();
-	let time_since_last_request = now.duration_since(*last_request);
-	if time_since_last_request < request_cooldown {
-		std::thread::sleep(request_cooldown - time_since_last_request);
-	}
-	*last_request = now;
+	// Assign the "last" request time before sleeping so that incoming requests while we're sleeping
+	// incorporate our soon-to-be request into their rate limiting
+	*last_request = wake_up_time;
+	tokio::time::sleep_until(wake_up_time.into())
 }
 
 /// This only works with 4k replays at the moment! All notes beyond the first four columns are

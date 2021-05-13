@@ -60,6 +60,8 @@ pub struct Session {
 	request_cooldown: std::time::Duration,
 
 	timeout: Option<std::time::Duration>,
+
+	http: reqwest::Client,
 }
 
 impl Session {
@@ -71,26 +73,30 @@ impl Session {
 			request_cooldown,
 			timeout,
 			last_request: std::sync::Mutex::new(std::time::Instant::now() - request_cooldown),
+			http: reqwest::Client::new(),
 		}
 	}
 
-	fn request(
+	async fn request(
 		&self,
-		method: &str,
+		method: reqwest::Method,
 		path: &str,
-		request_callback: impl Fn(ureq::Request) -> ureq::Response,
+		request_callback: impl Fn(reqwest::RequestBuilder) -> reqwest::RequestBuilder,
 	) -> Result<String, Error> {
 		// UNWRAP: propagate panics
-		crate::rate_limit(
-			&mut *self.last_request.lock().unwrap(),
-			self.request_cooldown,
-		);
+		let rate_limit =
+			crate::rate_limit(self.last_request.lock().unwrap(), self.request_cooldown);
+		rate_limit.await;
 
-		let mut request = ureq::request(method, &format!("https://etternaonline.com/{}", path));
+		let mut request = self
+			.http
+			.request(method, &format!("https://etternaonline.com/{}", path));
 		if let Some(timeout) = self.timeout {
-			request.timeout(timeout);
+			request = request.timeout(timeout);
 		}
-		let response = request_callback(request).into_string()?;
+		request = request_callback(request);
+
+		let response = request.send().await?.text().await?;
 
 		if response.trim().is_empty() {
 			return Err(Error::EmptyServerResponse);
@@ -100,15 +106,17 @@ impl Session {
 	}
 
 	/// Panics if the provided range is empty or negative
-	pub fn packlist(&self, range_to_retrieve: impl EoRange) -> Result<Vec<PackEntry>, Error> {
+	pub async fn packlist(&self, range_to_retrieve: impl EoRange) -> Result<Vec<PackEntry>, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self.request("POST", "pack/packlist", |mut r| {
-			r.send_form(&[
-				("start", &start.to_string()),
-				("length", &length.to_string()),
-			])
-		})?;
+		let json = self
+			.request(reqwest::Method::POST, "pack/packlist", |r| {
+				r.form(&[
+					("start", &start.to_string()),
+					("length", &length.to_string()),
+				])
+			})
+			.await?;
 		let json: serde_json::Value = serde_json::from_str(&json)?;
 
 		json["data"]
@@ -143,18 +151,20 @@ impl Session {
 	}
 
 	/// Panics if the provided range is empty or negative
-	pub fn leaderboard(
+	pub async fn leaderboard(
 		&self,
 		range_to_retrieve: impl EoRange,
 	) -> Result<Vec<LeaderboardEntry>, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self.request("POST", "leaderboard/leaderboard", |mut r| {
-			r.send_form(&[
-				("start", &start.to_string()),
-				("length", &length.to_string()),
-			])
-		})?;
+		let json = self
+			.request(reqwest::Method::POST, "leaderboard/leaderboard", |r| {
+				r.form(&[
+					("start", &start.to_string()),
+					("length", &length.to_string()),
+				])
+			})
+			.await?;
 		let json: serde_json::Value = serde_json::from_str(&json)?;
 
 		json["data"]
@@ -199,7 +209,7 @@ impl Session {
 	}
 
 	/// Panics if the provided range is empty or negative
-	pub fn user_scores(
+	pub async fn user_scores(
 		&self,
 		user_id: u32,
 		range_to_retrieve: impl EoRange,
@@ -210,49 +220,51 @@ impl Session {
 	) -> Result<UserScores, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self.request(
-			"POST",
-			if include_invalid {
-				"score/userScores"
-			} else {
-				"valid_score/userScores"
-			},
-			|mut r| {
-				r.send_form(&[
-					("start", &start.to_string()),
-					("length", &length.to_string()),
-					("userid", &user_id.to_string()),
-					(
-						"order[0][dir]",
-						match sort_direction {
-							SortDirection::Ascending => "asc",
-							SortDirection::Descending => "desc",
-						},
-					),
-					(
-						"order[0][column]",
-						match sort_criterium {
-							UserScoresSortBy::SongName => "0",
-							UserScoresSortBy::Rate => "1",
-							UserScoresSortBy::SsrOverall => "2",
-							UserScoresSortBy::SsrOverallNerfed => "3",
-							UserScoresSortBy::Wifescore => "4",
-							UserScoresSortBy::Date => "5",
-							UserScoresSortBy::Stream => "6",
-							UserScoresSortBy::Jumpstream => "7",
-							UserScoresSortBy::Handstream => "8",
-							UserScoresSortBy::Stamina => "9",
-							UserScoresSortBy::Jacks => "10",
-							UserScoresSortBy::Chordjacks => "11",
-							UserScoresSortBy::Technical => "12",
-							UserScoresSortBy::ChordCohesion => "13",
-							UserScoresSortBy::Scorekey => "",
-						},
-					),
-					("search[value]", song_name_search_query.unwrap_or("")),
-				])
-			},
-		)?;
+		let json = self
+			.request(
+				reqwest::Method::POST,
+				if include_invalid {
+					"score/userScores"
+				} else {
+					"valid_score/userScores"
+				},
+				|r| {
+					r.form(&[
+						("start", &start.to_string() as &str),
+						("length", &length.to_string()),
+						("userid", &user_id.to_string()),
+						(
+							"order[0][dir]",
+							match sort_direction {
+								SortDirection::Ascending => "asc",
+								SortDirection::Descending => "desc",
+							},
+						),
+						(
+							"order[0][column]",
+							match sort_criterium {
+								UserScoresSortBy::SongName => "0",
+								UserScoresSortBy::Rate => "1",
+								UserScoresSortBy::SsrOverall => "2",
+								UserScoresSortBy::SsrOverallNerfed => "3",
+								UserScoresSortBy::Wifescore => "4",
+								UserScoresSortBy::Date => "5",
+								UserScoresSortBy::Stream => "6",
+								UserScoresSortBy::Jumpstream => "7",
+								UserScoresSortBy::Handstream => "8",
+								UserScoresSortBy::Stamina => "9",
+								UserScoresSortBy::Jacks => "10",
+								UserScoresSortBy::Chordjacks => "11",
+								UserScoresSortBy::Technical => "12",
+								UserScoresSortBy::ChordCohesion => "13",
+								UserScoresSortBy::Scorekey => "",
+							},
+						),
+						("search[value]", song_name_search_query.unwrap_or("")),
+					])
+				},
+			)
+			.await?;
 		let json: serde_json::Value = serde_json::from_str(&json)?;
 
 		let scores = json["data"]
@@ -341,14 +353,15 @@ impl Session {
 		})
 	}
 
-	pub fn user_details(&self, username: &str) -> Result<UserDetails, Error> {
-		let response = self.request("GET", &format!("user/{}", username), |mut r| r.call())?;
+	pub async fn user_details(&self, username: &str) -> Result<UserDetails, Error> {
+		let response = self
+			.request(reqwest::Method::GET, &format!("user/{}", username), |r| r)
+			.await?;
 
 		if response.contains("Looks like the page you want, aint here.")
 			|| response.contains("disallowed characters") // if username has funky chars
 			|| response.contains("\"errors\":[]") // if username is empty
 			|| response.is_empty()
-		// or idek
 		{
 			return Err(Error::UserNotFound);
 		}
@@ -358,11 +371,34 @@ impl Session {
 				.ok_or_else(|| {
 					Error::InvalidDataStructure("No userid found in user page".to_owned())
 				})?,
+			// // The following code is not yet tested
+			// total_scores: (|| {
+			// 	response
+			// 		.as_str()
+			// 		.extract("Total Scores", "</td>")?
+			// 		.extract("<td>", "</td>")?
+			// 		.parse()
+			// 		.ok()
+			// })()
+			// .ok_or_else(|| {
+			// 	Error::InvalidDataStructure("Couldn't find total scores in user page".to_owned())
+			// }),
+			// unique_songs: (|| {
+			// 	response
+			// 		.as_str()
+			// 		.extract("Unique Songs Played", "</td>")?
+			// 		.extract("<td>", "</td>")?
+			// 		.parse()
+			// 		.ok()
+			// })()
+			// .ok_or_else(|| {
+			// 	Error::InvalidDataStructure("Couldn't find total scores in user page".to_owned())
+			// }),
 		})
 	}
 
 	/// `all_rates` - if true, show users' scores for all rates instead of just their best score
-	pub fn chart_leaderboard(
+	pub async fn chart_leaderboard(
 		&self,
 		chartkey: impl AsRef<str>,
 		range_to_retrieve: impl EoRange,
@@ -374,48 +410,50 @@ impl Session {
 	) -> Result<ChartLeaderboard, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
-		let json = self.request(
-			"POST",
-			if include_invalid {
-				"score/chartOverallScores"
-			} else {
-				"valid_score/chartOverallScores"
-			},
-			|mut r| {
-				r.send_form(&[
-					("start", &start.to_string()),
-					("length", &length.to_string()),
-					("chartkey", chartkey.as_ref()),
-					("top", if all_rates { "" } else { "true" }),
-					(
-						"order[0][dir]",
-						match sort_direction {
-							SortDirection::Ascending => "asc",
-							SortDirection::Descending => "desc",
-						},
-					),
-					(
-						"order[0][column]",
-						match sort_criterium {
-							ChartLeaderboardSortBy::Username => "1",
-							ChartLeaderboardSortBy::SsrOverall => "2",
-							ChartLeaderboardSortBy::Rate => "4",
-							ChartLeaderboardSortBy::Wife => "5",
-							ChartLeaderboardSortBy::Date => "6",
-							ChartLeaderboardSortBy::Marvelouses => "7",
-							ChartLeaderboardSortBy::Perfects => "8",
-							ChartLeaderboardSortBy::Greats => "9",
-							ChartLeaderboardSortBy::Goods => "10",
-							ChartLeaderboardSortBy::Bads => "11",
-							ChartLeaderboardSortBy::Misses => "12",
-							ChartLeaderboardSortBy::MaxCombo => "13",
-							ChartLeaderboardSortBy::Scorekey => "",
-						},
-					),
-					("search[value]", user_name_search_query.unwrap_or("")),
-				])
-			},
-		)?;
+		let json = self
+			.request(
+				reqwest::Method::POST,
+				if include_invalid {
+					"score/chartOverallScores"
+				} else {
+					"valid_score/chartOverallScores"
+				},
+				|r| {
+					r.form(&[
+						("start", &start.to_string() as &str),
+						("length", &length.to_string()),
+						("chartkey", chartkey.as_ref()),
+						("top", if all_rates { "" } else { "true" }),
+						(
+							"order[0][dir]",
+							match sort_direction {
+								SortDirection::Ascending => "asc",
+								SortDirection::Descending => "desc",
+							},
+						),
+						(
+							"order[0][column]",
+							match sort_criterium {
+								ChartLeaderboardSortBy::Username => "1",
+								ChartLeaderboardSortBy::SsrOverall => "2",
+								ChartLeaderboardSortBy::Rate => "4",
+								ChartLeaderboardSortBy::Wife => "5",
+								ChartLeaderboardSortBy::Date => "6",
+								ChartLeaderboardSortBy::Marvelouses => "7",
+								ChartLeaderboardSortBy::Perfects => "8",
+								ChartLeaderboardSortBy::Greats => "9",
+								ChartLeaderboardSortBy::Goods => "10",
+								ChartLeaderboardSortBy::Bads => "11",
+								ChartLeaderboardSortBy::Misses => "12",
+								ChartLeaderboardSortBy::MaxCombo => "13",
+								ChartLeaderboardSortBy::Scorekey => "",
+							},
+						),
+						("search[value]", user_name_search_query.unwrap_or("")),
+					])
+				},
+			)
+			.await?;
 		let json: serde_json::Value = serde_json::from_str(&json)?;
 
 		Ok(ChartLeaderboard {
