@@ -219,3 +219,14 @@ pub enum ChartLeaderboardSortBy {
 	Bads,
 	Misses,
 }
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(
+	feature = "serde",
+	derive(serde::Serialize, serde::Deserialize),
+	serde(crate = "serde_")
+)]
+pub enum LeaderboardSortBy {
+	Username,
+	Rating(Skillset8),
+}

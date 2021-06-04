@@ -154,14 +154,37 @@ impl Session {
 	pub async fn leaderboard(
 		&self,
 		range_to_retrieve: impl EoRange,
+		sort_criterium: LeaderboardSortBy,
+		sort_direction: SortDirection,
 	) -> Result<Vec<LeaderboardEntry>, Error> {
 		let (start, length) = range_to_retrieve.start_length();
 
 		let json = self
 			.request(reqwest::Method::POST, "leaderboard/leaderboard", |r| {
 				r.form(&[
-					("start", &start.to_string()),
-					("length", &length.to_string()),
+					("start", start.to_string().as_str()),
+					("length", length.to_string().as_str()),
+					(
+						"order[0][dir]",
+						match sort_direction {
+							SortDirection::Ascending => "asc",
+							SortDirection::Descending => "desc",
+						},
+					),
+					(
+						"order[0][column]",
+						match sort_criterium {
+							LeaderboardSortBy::Username => "1",
+							LeaderboardSortBy::Rating(Skillset8::Overall) => "2",
+							LeaderboardSortBy::Rating(Skillset8::Stream) => "3",
+							LeaderboardSortBy::Rating(Skillset8::Jumpstream) => "4",
+							LeaderboardSortBy::Rating(Skillset8::Handstream) => "5",
+							LeaderboardSortBy::Rating(Skillset8::Stamina) => "6",
+							LeaderboardSortBy::Rating(Skillset8::Jackspeed) => "7",
+							LeaderboardSortBy::Rating(Skillset8::Chordjack) => "8",
+							LeaderboardSortBy::Rating(Skillset8::Technical) => "9",
+						},
+					),
 				])
 			})
 			.await?;
