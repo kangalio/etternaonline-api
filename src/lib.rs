@@ -60,50 +60,101 @@ fn _assert_send_future() {
 	assert_send(web::Session::user_details(dummy(), dummy()));
 }
 
-thiserror_lite::err_enum! {
-	#[derive(Debug)]
-	#[non_exhaustive]
-	pub enum Error {
-		// Client errors
-		#[error("User not found")]
-		UserNotFound,
-		#[error("Username and password combination not found")]
-		InvalidLogin,
-		#[error("Score not found")]
-		ScoreNotFound,
-		#[error("Song not found")]
-		SongNotFound,
-		#[error("Chart not tracked")]
-		ChartNotTracked,
-		#[error("Favorite already exists")]
-		ChartAlreadyFavorited,
-		#[error("Database error")]
-		DatabaseError,
-		#[error("Goal already exists")]
-		GoalAlreadyExists,
-		#[error("Chart already exists")]
-		ChartAlreadyAdded,
-		#[error("The uploaded file is not a valid XML file")]
-		InvalidXml,
-		#[error("No users registered")]
-		NoUsersFound,
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum Error {
+	// Client errors
+	UserNotFound,
+	InvalidLogin,
+	ScoreNotFound,
+	SongNotFound,
+	ChartNotTracked,
+	ChartAlreadyFavorited,
+	DatabaseError,
+	GoalAlreadyExists,
+	ChartAlreadyAdded,
+	InvalidXml,
+	NoUsersFound,
 
-		// External errors
-		#[error("HTTP error: {0}")]
-		Http(#[from] reqwest::Error),
-		#[error("General network error: {0}")]
-		NetworkError(#[from] std::io::Error),
-		#[error("Internal EtternaOnline server error (HTTP {status_code})")]
-		InternalServerError { status_code: u16 },
-		#[error("Error while parsing the json sent by the server ({0})")]
-		InvalidJson(#[from] serde_json::Error),
-		#[error("Sever responded to query with an unrecognized error message ({0})")]
-		UnknownApiError(String),
-		#[error("Server sent a payload that doesn't match expectations (debug: {0:?})")]
-		InvalidDataStructure(String),
-		#[error("Server response was empty")]
-		EmptyServerResponse
+	// External errors
+	Http(reqwest::Error),
+	NetworkError(std::io::Error),
+	InternalServerError { status_code: u16 },
+	InvalidJson(serde_json::Error),
+	UnknownApiError(String),
+	InvalidDataStructure(String),
+	EmptyServerResponse,
+}
+
+impl std::fmt::Display for Error {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			// Client errors
+			Self::UserNotFound => write!(f, "User not found"),
+			Self::InvalidLogin => write!(f, "Username and password combination not found"),
+			Self::ScoreNotFound => write!(f, "Score not found"),
+			Self::SongNotFound => write!(f, "Song not found"),
+			Self::ChartNotTracked => write!(f, "Chart not tracked"),
+			Self::ChartAlreadyFavorited => write!(f, "Favorite already exists"),
+			Self::DatabaseError => write!(f, "Database error"),
+			Self::GoalAlreadyExists => write!(f, "Goal already exists"),
+			Self::ChartAlreadyAdded => write!(f, "Chart already exists"),
+			Self::InvalidXml => write!(f, "The uploaded file is not a valid XML file"),
+			Self::NoUsersFound => write!(f, "No users registered"),
+
+			// External errors
+			Self::Http(e) => write!(f, "HTTP error: {}", e),
+			Self::NetworkError(e) => write!(f, "General network error: {}", e),
+			Self::InternalServerError { status_code } => write!(
+				f,
+				"Internal EtternaOnline server error (HTTP {})",
+				status_code
+			),
+			Self::InvalidJson(e) => {
+				write!(f, "Error while parsing the json sent by the server ({})", e)
+			}
+			Self::UnknownApiError(e) => write!(
+				f,
+				"Server responded to query with an unrecognized error message ({})",
+				e
+			),
+			Self::InvalidDataStructure(e) => write!(
+				f,
+				"Server sent a payload that doesn't match expectations (debug: {:?})",
+				e
+			),
+			Self::EmptyServerResponse => write!(f, "Server response was empty"),
+		}
 	}
+}
+
+macro_rules! error_from {
+	($($variant:ident ( $inner:ty ) ),* $(,)?) => {
+		$(
+			impl From<$inner> for Error {
+				fn from(e: $inner) -> Self {
+					Self::$variant(e)
+				}
+			}
+		)*
+
+		impl std::error::Error for Error {
+			fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+				match self {
+					$(
+						Self::$variant(e) => Some(e),
+					)*
+					_ => None,
+				}
+			}
+		}
+	};
+}
+
+error_from! {
+	Http(reqwest::Error),
+	NetworkError(std::io::Error),
+	InvalidJson(serde_json::Error),
 }
 
 fn rate_limit(

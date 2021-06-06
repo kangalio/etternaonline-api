@@ -176,18 +176,30 @@ impl FileSize {
 	}
 }
 
-thiserror_lite::err_enum! {
-	/// Error returned from `FileSize::from_str`
-	#[derive(Debug)]
-	pub enum FileSizeParseError {
-		#[error("Given string was empty")]
-		EmptyString,
-		#[error("Error while parsing the filesize number")]
-		InvalidNumber(#[from] std::num::ParseFloatError),
-		#[error("No KB/MB/... ending")]
-		NoEnding,
-		#[error("Unknown ending (the KB/MB/... thingy)")]
-		UnexpectedEnding(String),
+/// Error returned from `FileSize::from_str`
+#[derive(Debug)]
+pub enum FileSizeParseError {
+	EmptyString,
+	InvalidNumber(std::num::ParseFloatError),
+	NoEnding,
+	UnexpectedEnding(String),
+}
+impl std::fmt::Display for FileSizeParseError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::EmptyString => write!(f, "Given string was empty"),
+			Self::InvalidNumber(e) => write!(f, "Error while parsing the filesize number: {}", e),
+			Self::NoEnding => write!(f, "No KB/MB/... ending"),
+			Self::UnexpectedEnding(ending) => write!(f, "Unknown file size unit '{}'", ending),
+		}
+	}
+}
+impl std::error::Error for FileSizeParseError {
+	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		match self {
+			Self::InvalidNumber(e) => Some(e),
+			_ => None,
+		}
 	}
 }
 
