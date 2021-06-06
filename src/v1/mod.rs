@@ -2,7 +2,7 @@ mod structs;
 pub use structs::*;
 
 use crate::extension_traits::*;
-use crate::Error;
+use crate::{Error, RequestContext};
 
 fn skillsets_from_eo(json: &serde_json::Value) -> Result<etterna::Skillsets8, Error> {
 	Ok(etterna::Skillsets8 {
@@ -72,6 +72,7 @@ impl Session {
 		&self,
 		path: &str,
 		parameters: &[(&str, &str)],
+		context: RequestContext<'_>,
 	) -> Result<serde_json::Value, Error> {
 		// UNWRAP: propagate panics
 		let rate_limit = crate::rate_limit(self.last_request.lock().unwrap(), self.cooldown);
@@ -91,9 +92,12 @@ impl Session {
 		if let Some(error) = json["error"].as_str() {
 			return Err(match error {
 				"Chart not tracked" => Error::ChartNotTracked,
-				"Sepcify a username" => Error::UserNotFound, // lol "sepcify"
-				"User not found" => Error::UserNotFound,
-				"Could not find scores for that user" => Error::UserNotFound,
+				// lol "sepcify"
+				"Sepcify a username" | "User not found" | "Could not find scores for that user" => {
+					Error::UserNotFound {
+						name: context.user.map(|x| x.to_owned()),
+					}
+				}
 				"No users for specified country" => Error::NoUsersFound,
 				"Score not found" => Error::ScoreNotFound,
 				other => Error::UnknownApiError(other.to_owned()),
@@ -120,8 +124,9 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn song_data(&self, song_id: u32) -> Result<SongData, Error> {
+		let ctx = RequestContext::default();
 		let json = self
-			.request("song", &[("key", song_id.to_string().as_str())])
+			.request("song", &[("key", song_id.to_string().as_str())], ctx)
 			.await?;
 		let json = json.singular_array_item()?;
 
@@ -186,7 +191,8 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn client_version(&self) -> Result<String, Error> {
-		Ok(self.request("clientVersion", &[]).await?["version"].string()?)
+		let ctx = RequestContext::default();
+		Ok(self.request("clientVersion", &[], ctx).await?["version"].string()?)
 	}
 
 	/// Retrieve the link where you can register for an EO account
@@ -202,7 +208,8 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn register_link(&self) -> Result<String, Error> {
-		Ok(self.request("registerLink", &[]).await?["link"].string()?)
+		let ctx = RequestContext::default();
+		Ok(self.request("registerLink", &[], ctx).await?["link"].string()?)
 	}
 
 	/// Retrieves a list of all packs tracked on EO
@@ -221,7 +228,8 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn pack_list(&self) -> Result<Vec<PackEntry>, Error> {
-		let json = self.request("pack_list", &[]).await?;
+		let ctx = RequestContext::default();
+		let json = self.request("pack_list", &[], ctx).await?;
 		json.array()?
 			.iter()
 			.map(|json| {
@@ -258,8 +266,9 @@ impl Session {
 		&self,
 		chartkey: impl AsRef<str>,
 	) -> Result<Vec<ChartLeaderboardEntry>, Error> {
+		let ctx = RequestContext::default();
 		let json = self
-			.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())])
+			.request("chartLeaderboard", &[("chartkey", chartkey.as_ref())], ctx)
 			.await?;
 		json.array()?
 			.iter()
@@ -313,8 +322,11 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn user_latest_10_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
+		let ctx = RequestContext {
+			user: Some(username),
+		};
 		let json = self
-			.request("last_user_session", &[("username", username)])
+			.request("last_user_session", &[("username", username)], ctx)
 			.await?;
 
 		json.array()?
@@ -348,7 +360,12 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn user_data(&self, username: &str) -> Result<UserData, Error> {
-		let json = self.request("user_data", &[("username", username)]).await?;
+		let ctx = RequestContext {
+			user: Some(username),
+		};
+		let json = self
+			.request("user_data", &[("username", username)], ctx)
+			.await?;
 
 		Ok(UserData {
 			user_name: json["username"].string()?,     // "kangalioo"
@@ -385,7 +402,12 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn user_ranks(&self, username: &str) -> Result<etterna::UserRank, Error> {
-		let json = self.request("user_rank", &[("username", username)]).await?;
+		let ctx = RequestContext {
+			user: Some(username),
+		};
+		let json = self
+			.request("user_rank", &[("username", username)], ctx)
+			.await?;
 
 		let user_rank = etterna::UserRank {
 			overall: json["Overall"].parse()?,
@@ -444,6 +466,9 @@ impl Session {
 					),
 					("num", &number.to_string()),
 				],
+				RequestContext {
+					user: Some(username),
+				},
 			)
 			.await?;
 
@@ -467,7 +492,8 @@ impl Session {
 		&self,
 		params: &[(&str, &str)],
 	) -> Result<Vec<LeaderboardEntry>, Error> {
-		let json = self.request("leaderboard", params).await?;
+		let ctx = RequestContext::default();
+		let json = self.request("leaderboard", params, ctx).await?;
 
 		json.array()?
 			.iter()
@@ -547,7 +573,10 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
-		let json = self.request("score", &[("key", scorekey.as_ref())]).await?;
+		let ctx = RequestContext::default();
+		let json = self
+			.request("score", &[("key", scorekey.as_ref())], ctx)
+			.await?;
 		let json = json.singular_array_item()?;
 
 		Ok(ScoreData {

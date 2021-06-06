@@ -64,7 +64,7 @@ fn _assert_send_future() {
 #[non_exhaustive]
 pub enum Error {
 	// Client errors
-	UserNotFound,
+	UserNotFound { name: Option<String> },
 	InvalidLogin,
 	ScoreNotFound,
 	SongNotFound,
@@ -90,7 +90,8 @@ impl std::fmt::Display for Error {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			// Client errors
-			Self::UserNotFound => write!(f, "User not found"),
+			Self::UserNotFound { name: Some(name) } => write!(f, "User '{}' not found", name),
+			Self::UserNotFound { name: None } => write!(f, "User not found"),
 			Self::InvalidLogin => write!(f, "Username and password combination not found"),
 			Self::ScoreNotFound => write!(f, "Score not found"),
 			Self::SongNotFound => write!(f, "Song not found"),
@@ -155,6 +156,13 @@ error_from! {
 	Http(reqwest::Error),
 	NetworkError(std::io::Error),
 	InvalidJson(serde_json::Error),
+}
+
+/// Contains context about the request which is used in error messages
+#[derive(Default, Debug)]
+struct RequestContext<'a> {
+	user: Option<&'a str>,
+	// TODO: add chartkey, scorekey, maybe country code? (if the need for better error messages arises)
 }
 
 fn rate_limit(

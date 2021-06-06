@@ -4,7 +4,7 @@ pub use structs::*;
 use etterna::*;
 
 use crate::extension_traits::*;
-use crate::Error;
+use crate::{Error, RequestContext};
 
 type BoxFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
 
@@ -152,6 +152,9 @@ impl Session {
 				reqwest::Method::POST,
 				"login",
 				|request| request.form(form),
+				RequestContext {
+					user: Some(&self.username),
+				},
 				false,
 			)
 			.await?;
@@ -172,6 +175,7 @@ impl Session {
 		method: reqwest::Method,
 		path: &'a str,
 		request_callback: impl Fn(reqwest::RequestBuilder) -> reqwest::RequestBuilder + Send + Sync + 'a,
+		context: RequestContext<'a>,
 		do_authorization: bool,
 	) -> BoxFuture<'a, Result<serde_json::Value, Error>> {
 		Box::pin(async move {
@@ -223,12 +227,20 @@ impl Session {
 						// Token expired, let's login again and retry
 						self.login().await?;
 						return self
-							.generic_request(method, path, request_callback, do_authorization)
+							.generic_request(
+								method,
+								path,
+								request_callback,
+								context,
+								do_authorization,
+							)
 							.await;
 					}
 					"Score not found" => Err(Error::ScoreNotFound),
 					"Chart not tracked" => Err(Error::ChartNotTracked),
-					"User not found" => Err(Error::UserNotFound),
+					"User not found" => Err(Error::UserNotFound {
+						name: context.user.map(|x| x.to_owned()),
+					}),
 					"Favorite already exists" => Err(Error::ChartAlreadyFavorited),
 					"Database error" => Err(Error::DatabaseError),
 					"Goal already exist" => Err(Error::GoalAlreadyExists),
@@ -251,13 +263,19 @@ impl Session {
 		method: reqwest::Method,
 		path: &str,
 		request_callback: impl Fn(reqwest::RequestBuilder) -> reqwest::RequestBuilder + Send + Sync,
+		context: RequestContext<'_>,
 	) -> Result<serde_json::Value, Error> {
-		self.generic_request(method, path, request_callback, true)
+		self.generic_request(method, path, request_callback, context, true)
 			.await
 	}
 
-	async fn get(&self, path: &str) -> Result<serde_json::Value, Error> {
-		self.request(reqwest::Method::GET, path, |x| x).await
+	async fn get(
+		&self,
+		path: &str,
+		context: RequestContext<'_>,
+	) -> Result<serde_json::Value, Error> {
+		self.request(reqwest::Method::GET, path, |x| x, context)
+			.await
 	}
 
 	/// Retrieves details about the profile of the specified user.
@@ -277,7 +295,10 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn user_details(&self, username: &str) -> Result<UserDetails, Error> {
-		let json = self.get(&format!("user/{}", username)).await?;
+		let ctx = RequestContext {
+			user: Some(username),
+		};
+		let json = self.get(&format!("user/{}", username), ctx).await?;
 		let json = &json["attributes"];
 
 		Ok(UserDetails {
@@ -305,8 +326,12 @@ impl Session {
 		})
 	}
 
-	async fn parse_top_scores(&self, url: &str) -> Result<Vec<TopScore>, Error> {
-		let json = self.get(url).await?;
+	async fn parse_top_scores(
+		&self,
+		url: &str,
+		context: RequestContext<'_>,
+	) -> Result<Vec<TopScore>, Error> {
+		let json = self.get(url, context).await?;
 
 		json.array()?
 			.iter()
@@ -356,12 +381,17 @@ impl Session {
 		skillset: etterna::Skillset7,
 		limit: u32,
 	) -> Result<Vec<TopScore>, Error> {
-		self.parse_top_scores(&format!(
-			"user/{}/top/{}/{}",
-			username,
-			crate::common::skillset_to_eo(skillset),
-			limit
-		))
+		self.parse_top_scores(
+			&format!(
+				"user/{}/top/{}/{}",
+				username,
+				crate::common::skillset_to_eo(skillset),
+				limit
+			),
+			RequestContext {
+				user: Some(username),
+			},
+		)
 		.await
 	}
 
@@ -381,8 +411,13 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn user_top_10_scores(&self, username: &str) -> Result<Vec<TopScore>, Error> {
-		self.parse_top_scores(&format!("user/{}/top//", username))
-			.await
+		self.parse_top_scores(
+			&format!("user/{}/top//", username),
+			RequestContext {
+				user: Some(username),
+			},
+		)
+		.await
 	}
 
 	/// Retrieve the user's latest 10 scores.
@@ -400,7 +435,14 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn user_latest_scores(&self, username: &str) -> Result<Vec<LatestScore>, Error> {
-		let json = self.get(&format!("user/{}/latest", username)).await?;
+		let json = self
+			.get(
+				&format!("user/{}/latest", username),
+				RequestContext {
+					user: Some(username),
+				},
+			)
+			.await?;
 
 		json.array()?
 			.iter()
@@ -435,7 +477,14 @@ impl Session {
 		&self,
 		username: &str,
 	) -> Result<etterna::UserRank, Error> {
-		let json = self.get(&format!("user/{}/ranks", username)).await?;
+		let json = self
+			.get(
+				&format!("user/{}/ranks", username),
+				RequestContext {
+					user: Some(username),
+				},
+			)
+			.await?;
 		let json = &json["attributes"];
 
 		Ok(etterna::UserRank {
@@ -469,7 +518,14 @@ impl Session {
 		&self,
 		username: &str,
 	) -> Result<UserTopScoresPerSkillset, Error> {
-		let json = self.get(&format!("user/{}/all", username)).await?;
+		let json = self
+			.get(
+				&format!("user/{}/all", username),
+				RequestContext {
+					user: Some(username),
+				},
+			)
+			.await?;
 
 		let parse_skillset_top_scores = |array: &serde_json::Value| -> Result<Vec<_>, Error> {
 			array
@@ -526,7 +582,12 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn score_data(&self, scorekey: impl AsRef<str>) -> Result<ScoreData, Error> {
-		let json = self.get(&format!("score/{}", scorekey.as_ref())).await?;
+		let json = self
+			.get(
+				&format!("score/{}", scorekey.as_ref()),
+				RequestContext::default(),
+			)
+			.await?;
 
 		let scorekey = json["id"].parse()?;
 		let json = &json["attributes"];
@@ -584,7 +645,10 @@ impl Session {
 		chartkey: impl AsRef<str>,
 	) -> Result<Vec<ChartLeaderboardScore>, Error> {
 		let json = self
-			.get(&format!("charts/{}/leaderboards", chartkey.as_ref()))
+			.get(
+				&format!("charts/{}/leaderboards", chartkey.as_ref()),
+				RequestContext::default(),
+			)
 			.await?;
 
 		json.array()?
@@ -645,7 +709,12 @@ impl Session {
 		&self,
 		country_code: &str,
 	) -> Result<Vec<LeaderboardEntry>, Error> {
-		let json = self.get(&format!("leaderboard/{}", country_code)).await?;
+		let json = self
+			.get(
+				&format!("leaderboard/{}", country_code),
+				RequestContext::default(),
+			)
+			.await?;
 
 		json.array()?
 			.iter()
@@ -707,7 +776,14 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn user_favorites(&self, username: &str) -> Result<Vec<String>, Error> {
-		let json = self.get(&format!("user/{}/favorites", username)).await?;
+		let json = self
+			.get(
+				&format!("user/{}/favorites", username),
+				RequestContext {
+					user: Some(username),
+				},
+			)
+			.await?;
 
 		json.array()?
 			.iter()
@@ -740,6 +816,9 @@ impl Session {
 			reqwest::Method::POST,
 			&format!("user/{}/favorites", username),
 			|req| req.form(&[("chartkey", chartkey)]),
+			RequestContext {
+				user: Some(username),
+			},
 		)
 		.await?;
 
@@ -766,6 +845,9 @@ impl Session {
 			reqwest::Method::DELETE,
 			&format!("user/{}/favorites/{}", username, chartkey.as_ref()),
 			|x| x,
+			RequestContext {
+				user: Some(username),
+			},
 		)
 		.await?;
 
@@ -789,7 +871,14 @@ impl Session {
 	/// # Ok(()) }
 	/// ```
 	pub async fn user_goals(&self, username: &str) -> Result<Vec<ScoreGoal>, Error> {
-		let json = self.get(&format!("user/{}/goals", username)).await?;
+		let json = self
+			.get(
+				&format!("user/{}/goals", username),
+				RequestContext {
+					user: Some(username),
+				},
+			)
+			.await?;
 
 		json.array()?
 			.iter()
@@ -852,6 +941,9 @@ impl Session {
 					("timeAssigned", time_assigned),
 				])
 			},
+			RequestContext {
+				user: Some(username),
+			},
 		)
 		.await?;
 
@@ -896,6 +988,9 @@ impl Session {
 				rate.as_f32()
 			),
 			|x| x,
+			RequestContext {
+				user: Some(username),
+			},
 		)
 		.await?;
 
@@ -945,6 +1040,9 @@ impl Session {
 							.unwrap_or("0000-00-00 00:00:00"),
 					),
 				])
+			},
+			RequestContext {
+				user: Some(username),
 			},
 		)
 		.await?;

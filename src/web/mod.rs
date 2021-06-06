@@ -386,7 +386,9 @@ impl Session {
 			|| response.contains("\"errors\":[]") // if username is empty
 			|| response.is_empty()
 		{
-			return Err(Error::UserNotFound);
+			return Err(Error::UserNotFound {
+				name: Some(username.to_owned()),
+			});
 		}
 
 		Ok(UserDetails {
