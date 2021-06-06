@@ -398,20 +398,6 @@ impl Session {
 			technical: json["Technical"].parse()?,
 		};
 
-		let user_rank_when_user_not_found = etterna::UserRank {
-			overall: 1,
-			stream: 1,
-			jumpstream: 1,
-			handstream: 1,
-			stamina: 1,
-			jackspeed: 1,
-			chordjack: 1,
-			technical: 1,
-		};
-		if user_rank == user_rank_when_user_not_found {
-			return Err(Error::UserNotFound);
-		}
-
 		Ok(user_rank)
 	}
 
