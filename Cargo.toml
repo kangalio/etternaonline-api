@@ -11,7 +11,8 @@ categories = ["api-bindings", "web-programming"]
 keywords = ["etterna", "http", "bindings"]
 
 [dependencies]
-reqwest = { version = "0.11", features = ["json"] }
+# reqwest = { version = "0.11", features = ["json"] }
+reqwest = { git = "https://github.com/kangalioo/reqwest", branch = "error-without-url", features = ["json"] }
 serde_json = "1.0"
 serde_ = { package = "serde", version = "1.0", features = ["derive"], optional = true }
 libm = "0.2.1"

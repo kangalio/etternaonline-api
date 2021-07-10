@@ -129,6 +129,13 @@ impl std::fmt::Display for Error {
 	}
 }
 
+impl From<reqwest::Error> for Error {
+	fn from(mut e: reqwest::Error) -> Self {
+		e.delete_url(); // let's not leak API keys
+		Self::Http(e)
+	}
+}
+
 macro_rules! error_from {
 	($($variant:ident ( $inner:ty ) ),* $(,)?) => {
 		$(
@@ -138,7 +145,11 @@ macro_rules! error_from {
 				}
 			}
 		)*
+	};
+}
 
+macro_rules! error_source {
+	($($variant:ident),* $(,)?) => {
 		impl std::error::Error for Error {
 			fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
 				match self {
@@ -153,9 +164,13 @@ macro_rules! error_from {
 }
 
 error_from! {
-	Http(reqwest::Error),
 	NetworkError(std::io::Error),
 	InvalidJson(serde_json::Error),
+}
+error_source! {
+	Http,
+	NetworkError,
+	InvalidJson,
 }
 
 /// Contains context about the request which is used in error messages
