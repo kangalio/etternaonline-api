@@ -54,39 +54,46 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 		.array()?
 		.iter()
 		.map(|note_json| {
-			Ok({
-				let note_json = note_json.array()?;
-				// println!("{:?}", note_json);
-				ReplayNote {
-					time: note_json[0].f32_()?,
-					hit: {
-						let deviation = note_json[1].f32_()? / 1000.0;
-						if (deviation - 0.18).abs() < 0.0000001 {
-							etterna::Hit::Miss
-						} else {
-							etterna::Hit::Hit { deviation }
-						}
-					},
-					lane: match note_json.get(2) {
-						Some(json) => {
-							json.attempt_get("lane u8, maybe -1", |json| match json.as_i64()? {
-								-1 => Some(None),
-								lane @ 0..=255 => Some(Some(lane as u8)),
-								_ => None, // everything else is invalid
-							})?
-						}
-						None => None,
-					},
-					note_type: match note_json.get(3) {
-						Some(json) => Some(note_type_from_eo(json)?),
-						None => None,
-					},
-					tick: match note_json.get(4) {
-						// it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
-						Some(x) => Some(x.u32_()?),
-						None => None,
-					},
-				}
+			let note_json = note_json.array()?;
+
+			let (lane_json, tick_json) = if let [_, _, tick_json] = note_json.as_slice() {
+				// In many of Bobini's scores (e.g. S0021ccf183b2bcbe716f0b875e321a85f90230b6263),
+				// the rows only have three entries, where the third is the tick instead of lane
+				(None, Some(tick_json))
+			} else {
+				// But normally, the third entry is the lane and the fifth entry is the tick
+				(note_json.get(2), note_json.get(4))
+			};
+
+			Ok(ReplayNote {
+				time: note_json[0].f32_()?,
+				hit: {
+					let deviation = note_json[1].f32_()? / 1000.0;
+					if (deviation - 0.18).abs() < 0.0000001 {
+						etterna::Hit::Miss
+					} else {
+						etterna::Hit::Hit { deviation }
+					}
+				},
+				lane: match lane_json {
+					Some(json) => {
+						json.attempt_get("lane u8, maybe -1", |json| match json.as_i64()? {
+							-1 => Some(None),
+							lane @ 0..=255 => Some(Some(lane as u8)),
+							_ => None, // everything else is invalid
+						})?
+					}
+					None => None,
+				},
+				note_type: match note_json.get(3) {
+					Some(json) => Some(note_type_from_eo(json)?),
+					None => None,
+				},
+				tick: match tick_json {
+					// it doesn't exist sometimes like in Sd4fc92514db02424e6b3fe7cdc0c2d7af3cd3dda6526
+					Some(x) => Some(x.u32_()?),
+					None => None,
+				},
 			})
 		})
 		.collect::<Result<Vec<ReplayNote>, Error>>()?;
