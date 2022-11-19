@@ -614,7 +614,7 @@ impl Session {
 				technical: json["skillsets"]["Technical"].f32_()?,
 			},
 			judgements: parse_judgements(&json["judgements"])?,
-			replay: crate::common::parse_replay(&json["replay"])?,
+			replay: crate::common::parse_replay(&json["replay"]),
 			user: ScoreUser {
 				username: json["user"]["username"].string()?,
 				avatar: json["user"]["avatar"].string()?,

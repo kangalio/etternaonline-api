@@ -300,7 +300,7 @@ impl Session {
 						country_code: json["countrycode"].string_maybe()?,
 						rating: json["player_rating"].parse()?,
 					},
-					replay: crate::common::parse_replay(&json["replay"])?,
+					replay: crate::common::parse_replay(&json["replay"]),
 				})
 			})
 			.collect()
@@ -606,7 +606,7 @@ impl Session {
 				country_code: json["countrycode"].string_maybe()?,
 				rating: json["player_rating"].parse()?,
 			},
-			replay: crate::common::parse_replay(&json["replay"])?,
+			replay: crate::common::parse_replay(&json["replay"]),
 			song: Song {
 				name: json["songname"].string()?,
 				artist: json["artist"].string()?,

@@ -20,6 +20,7 @@ etterna = "0.1.0"
 # etterna = { path = "../etterna-base" }
 # etterna = { git = "https://github.com/kangalioo/etterna-base" }
 tokio = "1.0"
+log = "0.4.17"
 
 [features]
 serde = ["serde_", "etterna/serde"]

@@ -34,7 +34,7 @@ pub(crate) fn skillset_to_eo(skillset: etterna::Skillset7) -> &'static str {
 	}
 }
 
-pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
+fn parse_replay_inner(json: &serde_json::Value) -> Result<Option<Replay>, Error> {
 	if json.is_null() {
 		return Ok(None);
 	}
@@ -105,4 +105,15 @@ pub(crate) fn parse_replay(json: &serde_json::Value) -> Result<Option<Replay>, E
 	}
 
 	Ok(Some(Replay { notes }))
+}
+
+pub(crate) fn parse_replay(json: &serde_json::Value) -> Option<Replay> {
+	match parse_replay_inner(json) {
+		Ok(Some(x)) => Some(x),
+		Ok(None) => None,
+		Err(e) => {
+			log::warn!("failed to parse replay: {}", e);
+			None
+		}
+	}
 }
